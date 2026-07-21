@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0e7c66">
+<title>Inventario Bebidas — Tasty Poke Mataró</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --card:#fff; --ink:#1c2733; --muted:#69788a; --line:#e3e9ef;
+    --accent:#0e7c66; --accent2:#0a5c4c; --warn:#c47f00; --danger:#c0392b;
+    --vinos:#8e44ad; --cervezas:#c47f00; --refrescos:#2471a3; --zumos:#1e8449;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:17px;}
+  button{font-family:inherit;}
+
+  header{position:sticky; top:0; z-index:20; background:var(--card); border-bottom:1px solid var(--line);
+    padding:10px 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  header h1{font-size:19px; margin:0; flex:1; white-space:nowrap;}
+  header .persona{font-size:14px; color:var(--muted); cursor:pointer; border:1px dashed var(--line);
+    border-radius:8px; padding:6px 10px;}
+  .btn{border:none; border-radius:10px; padding:11px 16px; font-size:15px; font-weight:600; cursor:pointer;}
+  .btn-primary{background:var(--accent); color:#fff;}
+  .btn-ghost{background:#eef2f5; color:var(--ink);}
+  .btn-warn{background:var(--warn); color:#fff;}
+  .btn-danger{background:var(--danger); color:#fff;}
+  .btn:active{opacity:.75;}
+
+  .toolbar{display:flex; gap:10px; padding:10px 14px; align-items:center; flex-wrap:wrap;}
+  .toolbar input[type=search]{flex:1; min-width:200px; font-size:17px; padding:12px 14px;
+    border:1px solid var(--line); border-radius:12px; outline:none; background:var(--card);}
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{border:1px solid var(--line); background:var(--card); border-radius:999px; padding:8px 14px;
+    font-size:14px; cursor:pointer; color:var(--muted);}
+  .chip.on{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  #alertVenc{margin:0 14px 6px; background:#fdf3e3; border:1px solid #f0d9ac; color:#7a5200;
+    border-radius:12px; padding:10px 14px; font-size:14px; display:none;}
+
+  main{padding:0 14px 130px;}
+  .row{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:8px;
+    display:flex; align-items:center; gap:8px; padding:8px 10px; position:relative;}
+  .row.uncounted-flash{outline:2px solid var(--warn);}
+  .fam-bar{width:5px; align-self:stretch; border-radius:4px; flex:none;}
+  .fam-VINOS{background:var(--vinos);} .fam-CERV{background:var(--cervezas);}
+  .fam-REFR{background:var(--refrescos);} .fam-ZUMO{background:var(--zumos);}
+
+  .p-info{flex:1; min-width:130px; padding:2px 0;}
+  .p-name{font-weight:650; font-size:16.5px; line-height:1.25;}
+  .p-desc{font-size:12.5px; color:var(--muted);}
+  .p-badges{display:flex; gap:6px; margin-top:3px; flex-wrap:wrap;}
+  .badge{font-size:11.5px; border-radius:6px; padding:2px 7px; background:#eef2f5; color:var(--muted);}
+  .badge.venc-soon{background:#fdecec; color:var(--danger); font-weight:600;}
+
+  .icon-btn{border:none; background:#f0f3f6; border-radius:10px; width:42px; height:42px; font-size:18px;
+    cursor:pointer; color:var(--muted); flex:none;}
+  .icon-btn.active{background:#e3f1ed; color:var(--accent);}
+
+  .counter{display:flex; flex-direction:column; align-items:center; gap:2px; flex:none;}
+  .counter .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
+  .counter .ctl{display:flex; align-items:center; gap:4px;}
+  .ctl button{width:44px; height:46px; border:none; border-radius:10px; background:#eef2f5; font-size:22px;
+    font-weight:700; color:var(--ink); cursor:pointer;}
+  .ctl .val{width:64px; height:46px; border:1px solid var(--line); border-radius:10px; background:#fbfcfd;
+    font-size:19px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .ctl .val.empty{color:#b8c2cc; font-weight:400;}
+  .total{flex:none; width:64px; text-align:center;}
+  .total .lbl{font-size:11px; color:var(--muted); text-transform:uppercase;}
+  .total .n{font-size:21px; font-weight:800; color:var(--accent2);}
+  .total .n.zero{color:#b8c2cc; font-weight:500;}
+
+  .handle{cursor:grab; touch-action:none; font-size:20px; color:#aab6c2; padding:0 4px; flex:none;}
+  .row.dragging{opacity:.55; border-color:var(--accent);}
+
+  footer{position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line);
+    padding:12px 14px calc(12px + env(safe-area-inset-bottom)); display:flex; gap:10px; z-index:20;}
+  footer .btn{flex:1; padding:15px; font-size:17px;}
+
+  .modal-bg{position:fixed; inset:0; background:rgba(15,25,35,.45); z-index:50; display:none;
+    align-items:center; justify-content:center; padding:18px;}
+  .modal-bg.open{display:flex;}
+  .modal{background:var(--card); border-radius:18px; width:100%; max-width:520px; max-height:88vh;
+    overflow:auto; padding:20px;}
+  .modal h2{margin:0 0 12px; font-size:19px;}
+  .modal label{display:block; font-size:13px; color:var(--muted); margin:12px 0 4px;}
+  .modal input[type=text], .modal input[type=date], .modal input[type=number], .modal select, .modal textarea{
+    width:100%; font-size:17px; padding:12px; border:1px solid var(--line); border-radius:10px; outline:none;}
+  .modal textarea{min-height:90px; resize:vertical;}
+  .modal .actions{display:flex; gap:10px; margin-top:18px;}
+  .modal .actions .btn{flex:1; padding:14px;}
+  .muted{color:var(--muted); font-size:14px;}
+
+  /* keypad */
+  .kp-strip{display:flex; gap:8px; margin-bottom:10px;}
+  .kp-strip button{flex:1; padding:12px; border-radius:10px; border:1px solid var(--line); background:#f7f9fb;
+    font-size:15px; font-weight:600; cursor:pointer;}
+  .kp-strip button.on{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .kp-display{font-size:34px; font-weight:800; text-align:center; padding:10px; background:#f7f9fb;
+    border-radius:12px; margin-bottom:10px; min-height:60px;}
+  .kp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .kp-grid button{padding:17px; font-size:23px; font-weight:700; border:none; border-radius:12px;
+    background:#eef2f5; cursor:pointer;}
+  .kp-grid button.ok{background:var(--accent); color:#fff;}
+  .lote-item{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:16px;}
+  .lote-item .x{margin-left:auto; border:none; background:#fdecec; color:var(--danger); border-radius:8px;
+    width:36px; height:36px; font-size:16px; cursor:pointer;}
+  .hist-item{border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px;
+    display:flex; align-items:center; gap:10px;}
+  .hist-item .info{flex:1;}
+  .sincontar{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;}
+  .sincontar span{background:#fdf3e3; border:1px solid #f0d9ac; color:#7a5200; border-radius:8px;
+    padding:4px 9px; font-size:13px;}
+  .toast{position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+    padding:12px 20px; border-radius:12px; font-size:15px; z-index:99; display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🥤 Inventario Bebidas · Mataró</h1>
+  <div class="persona" id="personaBtn">👤 —</div>
+  <button class="btn btn-ghost" id="histBtn">Historial</button>
+  <button class="btn btn-ghost" id="ordenBtn">✋ Reordenar</button>
+</header>
+
+<div class="toolbar">
+  <input type="search" id="buscar" placeholder="Buscar bebida…">
+  <div class="chips" id="chips"></div>
+  <button class="btn btn-ghost" id="addBtn">＋ Agregar bebida</button>
+</div>
+
+<div id="alertVenc"></div>
+<main id="lista"></main>
+
+<footer>
+  <button class="btn btn-primary" id="finBtn">✅ Finalizar inventario</button>
+</footer>
+
+<!-- Nombre -->
+<div class="modal-bg" id="mPersona">
+  <div class="modal">
+    <h2>¿Quién hace el inventario?</h2>
+    <label>Nombre</label>
+    <input type="text" id="personaInput" placeholder="Tu nombre" autocomplete="off">
+    <div class="actions"><button class="btn btn-primary" id="personaOk">Empezar</button></div>
+  </div>
+</div>
+
+<!-- Keypad -->
+<div class="modal-bg" id="mKeypad">
+  <div class="modal" style="max-width:360px">
+    <h2 id="kpTitle" style="font-size:17px"></h2>
+    <div class="kp-strip">
+      <button id="kpH">🧊 Heladera</button>
+      <button id="kpA">📦 Almacén</button>
+    </div>
+    <div class="kp-display" id="kpDisplay">—</div>
+    <div class="kp-grid">
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+      <button data-k=".">·</button><button data-k="0">0</button><button data-k="⌫">⌫</button>
+      <button data-k="C" style="background:#fdecec;color:var(--danger)">C</button>
+      <button class="ok" data-k="OK" style="grid-column:span 2">Listo ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- Nota -->
+<div class="modal-bg" id="mNota">
+  <div class="modal">
+    <h2 id="notaTitle">Nota</h2>
+    <textarea id="notaText" placeholder="Nota solo si es necesario…"></textarea>
+    <div class="actions">
+      <button class="btn btn-ghost" data-close>Cancelar</button>
+      <button class="btn btn-primary" id="notaOk">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Vencimientos -->
+<div class="modal-bg" id="mLotes">
+  <div class="modal">
+    <h2 id="lotesTitle">Vencimientos de lote</h2>
+    <div id="lotesList"></div>
+    <label>Agregar fecha de vencimiento</label>
+    <input type="date" id="loteFecha">
+    <div class="actions">
+      <button class="btn btn-ghost" data-close>Cerrar</button>
+      <button class="btn btn-primary" id="loteAdd">＋ Agregar lote</button>
+    </div>
+  </div>
+</div>
+
+<!-- Agregar producto -->
+<div class="modal-bg" id="mAdd">
+  <div class="modal">
+    <h2>Agregar bebida</h2>
+    <label>Nombre</label>
+    <input type="text" id="addNombre" autocomplete="off">
+    <label>Categoría</label>
+    <select id="addFam">
+      <option value="REFRESCOS">Refrescos</option>
+      <option value="CERVEZAS Y ALCOHOL">Cervezas y alcohol</option>
+      <option value="(C) VINOS Y CERVEZAS">Vinos</option>
+      <option value="ZUMOS">Zumos</option>
+    </select>
+    <label>Descripción corta (opcional)</label>
+    <input type="text" id="addDesc" autocomplete="off" placeholder="ej: incluye PET y vidrio">
+    <div class="actions">
+      <button class="btn btn-ghost" data-close>Cancelar</button>
+      <button class="btn btn-primary" id="addOk">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmar borrado -->
+<div class="modal-bg" id="mDel">
+  <div class="modal">
+    <h2>⚠️ Eliminar producto</h2>
+    <p id="delText" style="font-size:16px"></p>
+    <p class="muted">Se elimina de forma permanente del inventario.</p>
+    <div class="actions">
+      <button class="btn btn-ghost" data-close>Cancelar</button>
+      <button class="btn btn-danger" id="delOk">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Finalizar -->
+<div class="modal-bg" id="mFin">
+  <div class="modal">
+    <h2>Finalizar inventario</h2>
+    <div id="finResumen"></div>
+    <label>Hecho por</label>
+    <input type="text" id="finPersona" autocomplete="off">
+    <div class="actions">
+      <button class="btn btn-ghost" data-close>Seguir contando</button>
+      <button class="btn btn-primary" id="finOk">Confirmar ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- Post-finalizar -->
+<div class="modal-bg" id="mDone">
+  <div class="modal">
+    <h2>✅ Inventario guardado</h2>
+    <p class="muted">Descargá el Excel y envialo a <b>mataro@tastypokebar.com</b>. Si tu tablet lo permite, "Compartir" lo adjunta directo al correo.</p>
+    <div class="actions" style="flex-direction:column">
+      <button class="btn btn-primary" id="doneShare">📤 Compartir Excel</button>
+      <button class="btn btn-ghost" id="doneDownload">⬇️ Descargar Excel</button>
+      <button class="btn btn-ghost" id="doneMail">✉️ Abrir correo a Mataró</button>
+      <button class="btn btn-warn" id="doneNew">🔄 Empezar nuevo conteo</button>
+      <button class="btn btn-ghost" data-close>Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Historial -->
+<div class="modal-bg" id="mHist">
+  <div class="modal">
+    <h2>Historial de inventarios</h2>
+    <div id="histList"></div>
+    <div class="actions"><button class="btn btn-ghost" data-close>Cerrar</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= DATOS INICIALES ================= */
+const SEED = [
+{"id":1756,"fam":"(C) VINOS Y CERVEZAS","nombre":"Beronia Crianza","desc":"","bc":"ETPC00178","unidad":"Unidad"},
+{"id":1757,"fam":"(C) VINOS Y CERVEZAS","nombre":"Viñas del Vero Blanco","desc":"","bc":"","unidad":"Unidad"},
+{"id":543,"fam":"CERVEZAS Y ALCOHOL","nombre":"Alhambra","desc":"","bc":"24207","unidad":"Unidad"},
+{"id":541,"fam":"CERVEZAS Y ALCOHOL","nombre":"Corona","desc":"","bc":"3814","unidad":"Unidad"},
+{"id":540,"fam":"CERVEZAS Y ALCOHOL","nombre":"Mahou 00 Tostada","desc":"","bc":"2694","unidad":"Unidad"},
+{"id":539,"fam":"CERVEZAS Y ALCOHOL","nombre":"Mahou 5 Estrellas","desc":"Incluye NR y quinto","bc":"653","unidad":"Unidad"},
+{"id":2377,"fam":"CERVEZAS Y ALCOHOL","nombre":"Mahou IPA","desc":"","bc":"","unidad":"Unidad"},
+{"id":2669,"fam":"CERVEZAS Y ALCOHOL","nombre":"Mahou Lata","desc":"","bc":"","unidad":"Unidad"},
+{"id":2349,"fam":"CERVEZAS Y ALCOHOL","nombre":"Mahou Sin Alcohol","desc":"","bc":"","unidad":"Unidad"},
+{"id":544,"fam":"CERVEZAS Y ALCOHOL","nombre":"Mahou sin Gluten","desc":"","bc":"1813","unidad":"Unidad"},
+{"id":542,"fam":"CERVEZAS Y ALCOHOL","nombre":"Radler","desc":"","bc":"3096","unidad":"Unidad"},
+{"id":534,"fam":"REFRESCOS","nombre":"Agua","desc":"Incluye vidrio y PET 50 cl","bc":"6064","unidad":"Unidad"},
+{"id":0,"fam":"REFRESCOS","nombre":"Agua con gas 33cl","desc":"","bc":"","unidad":"Unidad"},
+{"id":526,"fam":"REFRESCOS","nombre":"Appletiser","desc":"","bc":"7511","unidad":"Unidad"},
+{"id":525,"fam":"REFRESCOS","nombre":"Aquarius Limón","desc":"Incluye vidrio y 50 cl","bc":"224","unidad":"Unidad"},
+{"id":528,"fam":"REFRESCOS","nombre":"Aquarius Naranja","desc":"Incluye vidrio y 50 cl","bc":"223","unidad":"Unidad"},
+{"id":522,"fam":"REFRESCOS","nombre":"Coca Cola","desc":"Incluye vidrio, 250 ml y 50 cl","bc":"3023","unidad":"Unidad"},
+{"id":523,"fam":"REFRESCOS","nombre":"Coca Cola Zero","desc":"Incluye Zero Zero y 50 cl","bc":"2631","unidad":"Unidad"},
+{"id":524,"fam":"REFRESCOS","nombre":"Fanta Limón","desc":"","bc":"2223","unidad":"Unidad"},
+{"id":527,"fam":"REFRESCOS","nombre":"Fanta Naranja","desc":"Incluye vidrio y 50 cl","bc":"2123","unidad":"Unidad"},
+{"id":537,"fam":"REFRESCOS","nombre":"Fuze Tea","desc":"Incluye vidrio y PET","bc":"4417","unidad":"Unidad"},
+{"id":536,"fam":"REFRESCOS","nombre":"Sprite","desc":"Incluye retornable y 50 cl","bc":"2550","unidad":"Unidad"},
+{"id":2354,"fam":"REFRESCOS","nombre":"Tónica","desc":"","bc":"","unidad":"Unidad"},
+{"id":2642,"fam":"ZUMOS","nombre":"Kombucha Red Fruit","desc":"","bc":"","unidad":"Unidad"},
+{"id":0,"fam":"ZUMOS","nombre":"Kombucha Lemon & Ginger","desc":"","bc":"","unidad":"Unidad"},
+{"id":2666,"fam":"ZUMOS","nombre":"Shot Jengibre/Manzana 60ml","desc":"","bc":"ETPC00458","unidad":"Unidad"},
+{"id":2663,"fam":"ZUMOS","nombre":"Zumo Detox Garden 250ml","desc":"","bc":"ETPC00455","unidad":"Unidad"},
+{"id":2665,"fam":"ZUMOS","nombre":"Zumo Samba Dream 250ml","desc":"","bc":"ETPC00457","unidad":"Unidad"},
+{"id":2664,"fam":"ZUMOS","nombre":"Zumo Tropic Boost 250ml","desc":"","bc":"ETPC00456","unidad":"Unidad"}
+];
+const EMAIL = "mataro@tastypokebar.com";
+const DIAS_ALERTA = 15;
+const LS_KEY = "invBebidasMataro_v4";
+
+/* ================= ESTADO ================= */
+let S = load();
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){ const s = JSON.parse(raw); if(s && s.productos) return s; }
+  }catch(e){}
+  return {
+    persona:"",
+    productos: SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p})),
+    counts:{}, notas:{}, lotes:{}, history:[]
+  };
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
+
+/* ================= HELPERS ================= */
+const $ = s=>document.querySelector(s);
+const famCls = f => f.includes("VINOS")?"fam-VINOS": f.includes("CERVEZAS Y")?"fam-CERV": f==="ZUMOS"?"fam-ZUMO":"fam-REFR";
+const famShort = f => f.includes("VINOS")?"Vinos": f.includes("CERVEZAS Y")?"Cervezas": f==="ZUMOS"?"Zumos":"Refrescos";
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function cnt(k){ return S.counts[k] || {h:null,a:null}; }
+function totalOf(k){ const c=cnt(k); if(c.h==null && c.a==null) return null; return (c.h||0)+(c.a||0); }
+function fmtN(n){ return n==null ? "—" : (Math.round(n*100)/100).toString().replace(".",","); }
+function fmtFecha(iso){ const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y; }
+function hoyISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function diasHasta(iso){ return Math.round((new Date(iso+"T12:00")-new Date(hoyISO()+"T12:00"))/864e5); }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.style.display="block";
+  clearTimeout(t._t); t._t=setTimeout(()=>t.style.display="none",2200); }
+function openM(id){ $("#"+id).classList.add("open"); }
+function closeM(id){ $("#"+id).classList.remove("open"); }
+document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",e=>e.target.closest(".modal-bg").classList.remove("open")));
+
+/* ================= RENDER ================= */
+let filtro="", famFiltro="";
+let editMode=false;
+
+const FAMS=[["","Todas"],["REFRESCOS","Refrescos"],["CERVEZAS Y ALCOHOL","Cervezas"],["(C) VINOS Y CERVEZAS","Vinos"],["ZUMOS","Zumos"]];
+$("#chips").innerHTML = FAMS.map(([v,l])=>`<div class="chip${v===""?" on":""}" data-fam="${esc(v)}">${l}</div>`).join("");
+$("#chips").addEventListener("click",e=>{
+  const c=e.target.closest(".chip"); if(!c) return;
+  famFiltro=c.dataset.fam;
+  document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===c));
+  render();
+});
+$("#buscar").addEventListener("input",e=>{ filtro=e.target.value.trim().toLowerCase(); render(); });
+
+function render(){
+  const main=$("#lista");
+  main.innerHTML="";
+  S.productos.forEach(p=>{
+    if(famFiltro && p.fam!==famFiltro) return;
+    if(filtro && !p.nombre.toLowerCase().includes(filtro)) return;
+    const c=cnt(p.key), tot=totalOf(p.key);
+    const nota=S.notas[p.key]||"";
+    const lotes=S.lotes[p.key]||[];
+    const proxVenc = lotes.map(l=>diasHasta(l)).sort((a,b)=>a-b)[0];
+    const row=document.createElement("div");
+    row.className="row"; row.dataset.key=p.key;
+    row.innerHTML=`
+      ${editMode?`<div class="handle" data-h>⠿</div>`:""}
+      <div class="fam-bar ${famCls(p.fam)}"></div>
+      <div class="p-info">
+        <div class="p-name">${esc(p.nombre)}</div>
+        ${p.desc?`<div class="p-desc">${esc(p.desc)}</div>`:""}
+        <div class="p-badges">
+          <span class="badge">${famShort(p.fam)}</span>
+          ${nota?`<span class="badge">📝 ${esc(nota.length>28?nota.slice(0,28)+"…":nota)}</span>`:""}
+          ${lotes.length?`<span class="badge ${proxVenc<=DIAS_ALERTA?"venc-soon":""}">📅 vence ${fmtFecha(lotes.slice().sort()[0])}</span>`:""}
+        </div>
+      </div>
+      <button class="icon-btn ${nota?"active":""}" data-nota title="Nota">📝</button>
+      <button class="icon-btn ${lotes.length?"active":""}" data-lotes title="Vencimiento">📅</button>
+      <div class="counter">
+        <div class="lbl">🧊 Heladera</div>
+        <div class="ctl">
+          <button data-step="h,-1">−</button>
+          <div class="val ${c.h==null?"empty":""}" data-kp="h">${fmtN(c.h)}</div>
+          <button data-step="h,1">＋</button>
+        </div>
+      </div>
+      <div class="counter">
+        <div class="lbl">📦 Almacén</div>
+        <div class="ctl">
+          <button data-step="a,-1">−</button>
+          <div class="val ${c.a==null?"empty":""}" data-kp="a">${fmtN(c.a)}</div>
+          <button data-step="a,1">＋</button>
+        </div>
+      </div>
+      <div class="total"><div class="lbl">Total</div><div class="n ${tot?"":"zero"}">${fmtN(tot)}</div></div>
+      ${editMode?`<button class="icon-btn" data-del style="background:#fdecec;color:var(--danger)">🗑</button>`:""}
+    `;
+    main.appendChild(row);
+  });
+  renderAlerta();
+}
+
+function renderAlerta(){
+  const avisos=[];
+  S.productos.forEach(p=>{
+    (S.lotes[p.key]||[]).forEach(l=>{
+      const d=diasHasta(l);
+      if(d<0) avisos.push(`<b>${esc(p.nombre)}</b> venció el ${fmtFecha(l)}`);
+      else if(d<=DIAS_ALERTA) avisos.push(`<b>${esc(p.nombre)}</b> vence en ${d} día${d===1?"":"s"} (${fmtFecha(l)})`);
+    });
+  });
+  const el=$("#alertVenc");
+  if(avisos.length){ el.innerHTML="⚠️ Vencimientos: "+avisos.join(" · "); el.style.display="block"; }
+  else el.style.display="none";
+}
+
+/* ================= INTERACCIÓN LISTA ================= */
+let kpKey=null, kpStrip="h", kpVal="";
+
+$("#lista").addEventListener("click",e=>{
+  const row=e.target.closest(".row"); if(!row) return;
+  const key=row.dataset.key;
+  const p=S.productos.find(x=>x.key===key);
+  const step=e.target.closest("[data-step]");
+  if(step){
+    const [f,d]=step.dataset.step.split(",");
+    const c=cnt(key); const v=Math.max(0,(c[f]||0)+Number(d));
+    S.counts[key]={...c,[f]:v}; save(); render(); return;
+  }
+  const kp=e.target.closest("[data-kp]");
+  if(kp){ openKeypad(key, kp.dataset.kp, p.nombre); return; }
+  if(e.target.closest("[data-nota]")){
+    notaKey=key; $("#notaTitle").textContent="Nota — "+p.nombre;
+    $("#notaText").value=S.notas[key]||""; openM("mNota"); return;
+  }
+  if(e.target.closest("[data-lotes]")){
+    lotesKey=key; $("#lotesTitle").textContent="Vencimientos — "+p.nombre;
+    renderLotes(); $("#loteFecha").value=""; openM("mLotes"); return;
+  }
+  if(e.target.closest("[data-del]")){
+    delKey=key; $("#delText").innerHTML=`¿Eliminar <b>${esc(p.nombre)}</b> del inventario?`;
+    openM("mDel"); return;
+  }
+});
+
+/* Keypad */
+function openKeypad(key,strip,nombre){
+  kpKey=key; kpStrip=strip;
+  const c=cnt(key); kpVal = c[strip]==null?"":String(c[strip]);
+  $("#kpTitle").textContent=nombre;
+  updateKp();
+  openM("mKeypad");
+}
+function updateKp(){
+  $("#kpH").classList.toggle("on",kpStrip==="h");
+  $("#kpA").classList.toggle("on",kpStrip==="a");
+  $("#kpDisplay").textContent = kpVal===""?"—":kpVal.replace(".",",");
+}
+$("#kpH").onclick=()=>{ commitKp(); kpStrip="h"; const c=cnt(kpKey); kpVal=c.h==null?"":String(c.h); updateKp(); };
+$("#kpA").onclick=()=>{ commitKp(); kpStrip="a"; const c=cnt(kpKey); kpVal=c.a==null?"":String(c.a); updateKp(); };
+function commitKp(){
+  if(kpKey==null) return;
+  const c=cnt(kpKey);
+  const v = kpVal===""||kpVal==="." ? null : Math.max(0,parseFloat(kpVal));
+  S.counts[kpKey]={...c,[kpStrip]: (v==null||isNaN(v))?null:v};
+  save();
+}
+$("#mKeypad").addEventListener("click",e=>{
+  const b=e.target.closest("[data-k]");
+  if(!b){ if(e.target.id==="mKeypad"){ commitKp(); closeM("mKeypad"); render(); } return; }
+  const k=b.dataset.k;
+  if(k==="OK"){ commitKp(); closeM("mKeypad"); render(); return; }
+  if(k==="C"){ kpVal=""; }
+  else if(k==="⌫"){ kpVal=kpVal.slice(0,-1); }
+  else if(k==="."){ if(!kpVal.includes(".")) kpVal=(kpVal||"0")+"."; }
+  else { if(kpVal.replace(".","").length<5) kpVal=(kpVal==="0"?"":kpVal)+k; }
+  updateKp();
+});
+
+/* Nota */
+let notaKey=null;
+$("#notaOk").onclick=()=>{
+  const t=$("#notaText").value.trim();
+  if(t) S.notas[notaKey]=t; else delete S.notas[notaKey];
+  save(); closeM("mNota"); render();
+};
+
+/* Lotes */
+let lotesKey=null;
+function renderLotes(){
+  const lotes=(S.lotes[lotesKey]||[]).slice().sort();
+  $("#lotesList").innerHTML = lotes.length
+    ? lotes.map((l,i)=>{
+        const d=diasHasta(l);
+        const tag = d<0?`<span style="color:var(--danger);font-weight:700">VENCIDO</span>`
+                  : d<=DIAS_ALERTA?`<span style="color:var(--warn);font-weight:700">en ${d}d</span>`:"";
+        return `<div class="lote-item">📅 ${fmtFecha(l)} ${tag}<button class="x" data-li="${i}">✕</button></div>`;
+      }).join("")
+    : `<p class="muted">Sin fechas cargadas.</p>`;
+}
+$("#lotesList").addEventListener("click",e=>{
+  const b=e.target.closest("[data-li]"); if(!b) return;
+  const lotes=(S.lotes[lotesKey]||[]).slice().sort();
+  lotes.splice(Number(b.dataset.li),1);
+  if(lotes.length) S.lotes[lotesKey]=lotes; else delete S.lotes[lotesKey];
+  save(); renderLotes(); render();
+});
+$("#loteAdd").onclick=()=>{
+  const f=$("#loteFecha").value; if(!f){ toast("Elegí una fecha"); return; }
+  S.lotes[lotesKey]=[...(S.lotes[lotesKey]||[]),f];
+  $("#loteFecha").value=""; save(); renderLotes(); render();
+};
+
+/* Agregar */
+$("#addBtn").onclick=()=>{ $("#addNombre").value=""; $("#addDesc").value=""; openM("mAdd"); $("#addNombre").focus(); };
+$("#addOk").onclick=()=>{
+  const n=$("#addNombre").value.trim(); if(!n){ toast("Poné un nombre"); return; }
+  S.productos.push({key:"c"+Date.now(), id:0, fam:$("#addFam").value, nombre:n,
+    desc:$("#addDesc").value.trim(), bc:"", unidad:"Unidad"});
+  save(); closeM("mAdd"); render(); toast("Agregado: "+n);
+};
+
+/* Eliminar */
+let delKey=null;
+$("#delOk").onclick=()=>{
+  S.productos=S.productos.filter(p=>p.key!==delKey);
+  delete S.counts[delKey]; delete S.notas[delKey]; delete S.lotes[delKey];
+  save(); closeM("mDel"); render(); toast("Producto eliminado");
+};
+
+/* Reordenar (drag con pointer events, solo en modo edición) */
+$("#ordenBtn").onclick=()=>{
+  editMode=!editMode;
+  $("#ordenBtn").textContent = editMode?"🔒 Guardar orden":"✋ Reordenar";
+  $("#ordenBtn").classList.toggle("btn-warn",editMode);
+  if(!editMode){ save(); toast("Orden guardado y bloqueado"); }
+  render();
+};
+let drag=null;
+$("#lista").addEventListener("pointerdown",e=>{
+  const h=e.target.closest("[data-h]"); if(!h||!editMode) return;
+  const row=h.closest(".row");
+  drag={row, key:row.dataset.key};
+  row.classList.add("dragging");
+  row.setPointerCapture&&h.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+document.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  const rows=[...document.querySelectorAll("#lista .row")].filter(r=>r!==drag.row);
+  const over=rows.find(r=>{ const b=r.getBoundingClientRect(); return e.clientY>b.top && e.clientY<b.bottom; });
+  if(over){
+    const b=over.getBoundingClientRect();
+    if(e.clientY < b.top+b.height/2) over.before(drag.row); else over.after(drag.row);
+  }
+});
+document.addEventListener("pointerup",()=>{
+  if(!drag) return;
+  drag.row.classList.remove("dragging");
+  // persistir el nuevo orden según el DOM (respetando los filtrados que no se ven)
+  const visible=[...document.querySelectorAll("#lista .row")].map(r=>r.dataset.key);
+  const inVis=new Set(visible);
+  const others=S.productos.filter(p=>!inVis.has(p.key));
+  const reordered=visible.map(k=>S.productos.find(p=>p.key===k));
+  // insertar los visibles en su nuevo orden, manteniendo los no visibles en su lugar relativo original
+  let vi=0;
+  S.productos=S.productos.map(p=> inVis.has(p.key) ? reordered[vi++] : p);
+  save(); drag=null; render();
+});
+
+/* Persona */
+function askPersona(){ $("#personaInput").value=S.persona||""; openM("mPersona"); }
+$("#personaBtn").onclick=askPersona;
+$("#personaOk").onclick=()=>{
+  const n=$("#personaInput").value.trim();
+  if(!n){ toast("Ingresá tu nombre"); return; }
+  S.persona=n; save(); closeM("mPersona"); refreshPersona();
+};
+function refreshPersona(){ $("#personaBtn").textContent="👤 "+(S.persona||"—"); }
+
+/* ================= FINALIZAR ================= */
+$("#finBtn").onclick=()=>{
+  const sin=S.productos.filter(p=>totalOf(p.key)==null);
+  const contados=S.productos.length-sin.length;
+  $("#finResumen").innerHTML=`
+    <p style="font-size:16px">Productos con conteo: <b>${contados}</b> de ${S.productos.length}.</p>
+    ${sin.length?`<p class="muted">Sin contar (irán con stock vacío):</p>
+      <div class="sincontar">${sin.map(p=>`<span>${esc(p.nombre)}</span>`).join("")}</div>`:""}
+  `;
+  $("#finPersona").value=S.persona||"";
+  openM("mFin");
+};
+
+let lastBlob=null, lastFname=null;
+$("#finOk").onclick=()=>{
+  const persona=$("#finPersona").value.trim();
+  if(!persona){ toast("Ingresá quién lo hizo"); return; }
+  S.persona=persona; refreshPersona();
+  const fecha=new Date();
+  const fstr=String(fecha.getDate()).padStart(2,"0")+"/"+String(fecha.getMonth()+1).padStart(2,"0")+"/"+fecha.getFullYear();
+  const rows=S.productos.map(p=>{
+    const c=cnt(p.key);
+    return {id:p.id||"", fam:p.fam, nombre:p.nombre, bc:p.bc, unidad:p.unidad,
+      h:c.h, a:c.a, total:totalOf(p.key), nota:S.notas[p.key]||"",
+      lotes:(S.lotes[p.key]||[]).slice().sort().map(fmtFecha).join(", ")};
+  });
+  const inv={fecha:fstr, iso:fecha.toISOString(), persona, rows};
+  S.history.unshift(inv); if(S.history.length>30) S.history.length=30;
+  save();
+  lastFname="Inventario_Bebidas_Mataro_"+fstr.replace(/\//g,"-")+".xlsx";
+  lastBlob=buildXlsx(inv);
+  closeM("mFin"); openM("mDone");
+};
+$("#doneDownload").onclick=()=>downloadBlob(lastBlob,lastFname);
+$("#doneShare").onclick=async()=>{
+  try{
+    const file=new File([lastBlob],lastFname,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"Inventario bebidas", text:"Inventario de bebidas — enviar a "+EMAIL});
+    } else { toast("Compartir no disponible: descargalo y adjuntalo"); downloadBlob(lastBlob,lastFname); }
+  }catch(e){}
+};
+$("#doneMail").onclick=()=>{
+  const s=encodeURIComponent("Inventario bebidas Mataró — "+(S.history[0]?S.history[0].fecha:"")+" ("+S.persona+")");
+  const b=encodeURIComponent("Hola,\n\nAdjunto el inventario de bebidas.\nHecho por: "+S.persona+"\n\n(Adjuntar el Excel descargado)");
+  location.href="mailto:"+EMAIL+"?subject="+s+"&body="+b;
+};
+$("#doneNew").onclick=()=>{
+  S.counts={}; S.notas={}; save(); closeM("mDone"); render(); toast("Conteos limpiados. ¡Listo para el próximo!");
+};
+
+/* Historial */
+$("#histBtn").onclick=()=>{
+  $("#histList").innerHTML = S.history.length
+    ? S.history.map((h,i)=>`
+      <div class="hist-item">
+        <div class="info"><b>${h.fecha}</b> — ${esc(h.persona)}<br>
+        <span class="muted">${h.rows.filter(r=>r.total!=null).length} productos contados</span></div>
+        <button class="btn btn-ghost" data-hx="${i}">⬇️ Excel</button>
+      </div>`).join("")
+    : `<p class="muted">Todavía no hay inventarios finalizados.</p>`;
+  openM("mHist");
+};
+$("#histList").addEventListener("click",e=>{
+  const b=e.target.closest("[data-hx]"); if(!b) return;
+  const h=S.history[Number(b.dataset.hx)];
+  downloadBlob(buildXlsx(h),"Inventario_Bebidas_Mataro_"+h.fecha.replace(/\//g,"-")+".xlsx");
+});
+
+function downloadBlob(blob,name){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},2000);
+}
+
+/* ================= XLSX (sin librerías, funciona offline) ================= */
+function buildXlsx(inv){
+  const xe=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  function sheetXML(rows){
+    let out='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    rows.forEach((r,ri)=>{
+      out+='<row r="'+(ri+1)+'">';
+      r.forEach((c,ci)=>{
+        const ref=colName(ci)+(ri+1);
+        if(c===null||c===undefined||c==="") return;
+        if(typeof c==="number") out+='<c r="'+ref+'"><v>'+c+'</v></c>';
+        else out+='<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+xe(c)+'</t></is></c>';
+      });
+      out+='</row>';
+    });
+    return out+'</sheetData></worksheet>';
+  }
+  function colName(i){ let s=""; i++; while(i){ s=String.fromCharCode(65+(i-1)%26)+s; i=Math.floor((i-1)/26);} return s; }
+
+  // Hoja 1: formato Ágora
+  const h1=["Id","Familia","Nombre","Ubicación","Código Barras","Unidad","Stock Teórico (Uds. Venta)","Stock Real (Uds. Venta)"];
+  const s1=[h1, ...inv.rows.map(r=>[r.id===""?"":Number(r.id), r.fam, r.nombre, "", r.bc, r.unidad, "", r.total==null?"":r.total])];
+  // Hoja 2: detalle
+  const h2=["Nombre","Heladera","Almacén","Total","Nota","Vencimientos"];
+  const s2=[["Inventario de bebidas — Tasty Poke Mataró"],["Fecha", inv.fecha, "Hecho por", inv.persona],[],
+    h2, ...inv.rows.map(r=>[r.nombre, r.h==null?"":r.h, r.a==null?"":r.a, r.total==null?"":r.total, r.nota, r.lotes])];
+
+  const files=[
+    ["[Content_Types].xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ["_rels/.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ["xl/workbook.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Inventario" sheetId="1" r:id="rId1"/><sheet name="Detalle" sheetId="2" r:id="rId2"/></sheets></workbook>'],
+    ["xl/_rels/workbook.xml.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ["xl/styles.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="1"><xf/></cellXfs></styleSheet>'],
+    ["xl/worksheets/sheet1.xml",sheetXML(s1)],
+    ["xl/worksheets/sheet2.xml",sheetXML(s2)]
+  ];
+  return new Blob([makeZip(files)],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+
+/* ZIP sin compresión (STORE) */
+const CRC_TABLE=(()=>{ const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+function crc32(buf){ let c=0xFFFFFFFF;
+  for(let i=0;i<buf.length;i++) c=CRC_TABLE[(c^buf[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0; }
+function makeZip(files){
+  const enc=new TextEncoder();
+  const parts=[], central=[]; let offset=0;
+  files.forEach(([name,content])=>{
+    const nameB=enc.encode(name), data=enc.encode(content), crc=crc32(data);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true); lh.setUint16(8,0,true);
+    lh.setUint16(10,0,true); lh.setUint16(12,0,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true);
+    lh.setUint16(26,nameB.length,true); lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),nameB,data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true);
+    ch.setUint16(10,0,true); ch.setUint16(12,0,true); ch.setUint16(14,0,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,data.length,true); ch.setUint32(24,data.length,true);
+    ch.setUint16(28,nameB.length,true);
+    ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer),nameB);
+    offset+=30+nameB.length+data.length;
+  });
+  const cdSize=central.reduce((a,b)=>a+b.length,0);
+  const eocd=new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0,0x06054b50,true);
+  eocd.setUint16(8,files.length,true); eocd.setUint16(10,files.length,true);
+  eocd.setUint32(12,cdSize,true); eocd.setUint32(16,offset,true);
+  const all=[...parts,...central,new Uint8Array(eocd.buffer)];
+  const total=all.reduce((a,b)=>a+b.length,0);
+  const out=new Uint8Array(total); let o=0;
+  all.forEach(b=>{ out.set(b,o); o+=b.length; });
+  return out;
+}
+
+/* ================= INIT ================= */
+refreshPersona();
+render();
+if(!S.persona) askPersona();
+if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
+</script>
+</body>
+</html>
