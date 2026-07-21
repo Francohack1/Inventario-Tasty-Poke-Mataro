@@ -116,6 +116,9 @@
   .sincontar{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;}
   .sincontar span{background:#fdf3e3; border:1px solid #f0d9ac; color:#7a5200; border-radius:8px;
     padding:4px 9px; font-size:13px;}
+  .ayuda-item{display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); font-size:15px; line-height:1.45;}
+  .ayuda-item .ic{font-size:22px; flex:none; width:34px; text-align:center;}
+  .ayuda-item b{display:block;}
   .toast{position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
     padding:12px 20px; border-radius:12px; font-size:15px; z-index:99; display:none;}
 </style>
@@ -125,6 +128,7 @@
 <header>
   <h1>🥤 Inventario Bebidas · Mataró</h1>
   <div class="persona" id="personaBtn">👤 —</div>
+  <button class="btn btn-ghost" id="ayudaBtn" title="Ayuda">❓</button>
   <button class="btn btn-ghost" id="histBtn">Historial</button>
   <button class="btn btn-ghost" id="ordenBtn">✋ Reordenar</button>
 </header>
@@ -261,6 +265,23 @@
       <button class="btn btn-ghost" data-close>Cerrar</button>
     </div>
     <p class="muted" style="text-align:center;margin-bottom:0"><a href="#" id="doneCfg">⚙️ Configurar envío automático</a></p>
+  </div>
+</div>
+
+<!-- Ayuda -->
+<div class="modal-bg" id="mAyuda">
+  <div class="modal">
+    <h2>¿Cómo se usa?</h2>
+    <div class="ayuda-item"><div class="ic">🧊📦</div><div><b>Heladera y Almacén</b>Contá cada zona por separado. Con − y ＋ vas de a uno, o tocá el número para escribir con el teclado grande. El Total se suma solo.</div></div>
+    <div class="ayuda-item"><div class="ic">📝</div><div><b>Nota</b>Comentario opcional del producto (ej. "llegó caja rota"). Sale en el Excel.</div></div>
+    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Cuando falten 15 días o menos, la app avisa arriba al abrirla.</div></div>
+    <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre o tocá una categoría para encontrar rápido.</div></div>
+    <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar bebida</b>Para productos nuevos. Quedan guardados para los próximos inventarios.</div></div>
+    <div class="ayuda-item"><div class="ic">✋</div><div><b>Reordenar</b>Poné los productos en el orden en que están en el local: arrastrá desde ⠿. Ahí también está 🗑 para eliminar (pide confirmación). "Guardar orden" lo deja fijo.</div></div>
+    <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra qué faltó contar, pide confirmar, y arma el Excel. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
+    <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Inventarios anteriores, con opción de volver a bajar el Excel de cada uno.</div></div>
+    <div class="ayuda-item" style="border-bottom:none"><div class="ic">💾</div><div><b>Guardado automático</b>Todo se guarda al instante. Podés cerrar la app o apagar la tablet y seguir después donde quedaste.</div></div>
+    <div class="actions"><button class="btn btn-primary" data-close>¡Entendido!</button></div>
   </div>
 </div>
 
@@ -774,6 +795,10 @@ function makeZip(files){
 refreshPersona();
 render();
 if(!S.persona) askPersona();
+/* Ayuda */
+const AYUDA_KEY="invMataroAyudaVista";
+$("#ayudaBtn").onclick=()=>openM("mAyuda");
+if(!localStorage.getItem(AYUDA_KEY)){ localStorage.setItem(AYUDA_KEY,"1"); openM("mAyuda"); }
 if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 </script>
 </body>
