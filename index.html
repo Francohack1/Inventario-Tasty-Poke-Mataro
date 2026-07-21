@@ -253,12 +253,14 @@
     <h2>✅ Inventario guardado</h2>
     <p class="muted">Descargá el Excel y envialo a <b>mataro@tastypokebar.com</b>. Si tu tablet lo permite, "Compartir" lo adjunta directo al correo.</p>
     <div class="actions" style="flex-direction:column">
-      <button class="btn btn-primary" id="doneShare">📤 Compartir Excel</button>
+      <button class="btn btn-primary" id="doneAuto">✉️ Enviar automático a Mataró</button>
+      <button class="btn btn-ghost" id="doneShare">📤 Compartir Excel</button>
       <button class="btn btn-ghost" id="doneDownload">⬇️ Descargar Excel</button>
       <button class="btn btn-ghost" id="doneMail">✉️ Abrir correo a Mataró</button>
       <button class="btn btn-warn" id="doneNew">🔄 Empezar nuevo conteo</button>
       <button class="btn btn-ghost" data-close>Cerrar</button>
     </div>
+    <p class="muted" style="text-align:center;margin-bottom:0"><a href="#" id="doneCfg">⚙️ Configurar envío automático</a></p>
   </div>
 </div>
 
@@ -380,8 +382,6 @@ function render(){
           ${lotes.length?`<span class="badge ${proxVenc<=DIAS_ALERTA?"venc-soon":""}">📅 vence ${fmtFecha(lotes.slice().sort()[0])}</span>`:""}
         </div>
       </div>
-      <button class="icon-btn ${nota?"active":""}" data-nota title="Nota">📝</button>
-      <button class="icon-btn ${lotes.length?"active":""}" data-lotes title="Vencimiento">📅</button>
       <div class="counter">
         <div class="lbl">🧊 Heladera</div>
         <div class="ctl">
@@ -399,6 +399,8 @@ function render(){
         </div>
       </div>
       <div class="total"><div class="lbl">Total</div><div class="n ${tot?"":"zero"}">${fmtN(tot)}</div></div>
+      <button class="icon-btn ${nota?"active":""}" data-nota title="Nota">📝</button>
+      <button class="icon-btn ${lotes.length?"active":""}" data-lotes title="Vencimiento">📅</button>
       ${editMode?`<button class="icon-btn" data-del style="background:#fdecec;color:var(--danger)">🗑</button>`:""}
     `;
     main.appendChild(row);
@@ -618,6 +620,37 @@ $("#finOk").onclick=()=>{
   closeM("mFin"); openM("mDone");
 };
 $("#doneDownload").onclick=()=>downloadBlob(lastBlob,lastFname);
+/* Envío automático vía Google Apps Script */
+const SCRIPT_KEY="invMataroScriptURL";
+const SCRIPT_URL_DEFAULT="https://script.google.com/macros/s/AKfycbz3Uwvc-ysIDkn6zvsD463rFw8b3-RA8NTlnDkEA91NX_7ug5A83HmjJHBpTuBMxk6m/exec";
+function blobToB64(blob){ return new Promise((res,rej)=>{ const r=new FileReader();
+  r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=rej; r.readAsDataURL(blob); }); }
+$("#doneCfg").onclick=(e)=>{ e.preventDefault();
+  const cur=localStorage.getItem(SCRIPT_KEY)||"";
+  const url=prompt("Pegá la URL del script de Google (termina en /exec):",cur);
+  if(url===null) return;
+  if(url.trim()){ localStorage.setItem(SCRIPT_KEY,url.trim()); toast("Envío automático configurado ✓"); }
+  else { localStorage.removeItem(SCRIPT_KEY); toast("Envío automático desactivado"); }
+};
+$("#doneAuto").onclick=async()=>{
+  let url=localStorage.getItem(SCRIPT_KEY)||SCRIPT_URL_DEFAULT;
+  const btn=$("#doneAuto"); btn.disabled=true; btn.textContent="Enviando…";
+  try{
+    const h=S.history[0];
+    const b64=await blobToB64(lastBlob);
+    const r=await fetch(url,{method:"POST",body:JSON.stringify({
+      filename:lastFname, b64,
+      subject:"Inventario bebidas Mataró — "+h.fecha+" ("+h.persona+")",
+      body:"Inventario de bebidas.\nFecha: "+h.fecha+"\nHecho por: "+h.persona+"\n\nEnviado automáticamente desde la app de inventario."})});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||"error");
+    btn.textContent="✅ Enviado a Mataró";
+    toast("Correo enviado con el Excel adjunto ✓");
+  }catch(e){
+    btn.disabled=false; btn.textContent="✉️ Enviar automático a Mataró";
+    toast("No se pudo enviar. Usá Compartir o Descargar.");
+  }
+};
 $("#doneShare").onclick=async()=>{
   try{
     const file=new File([lastBlob],lastFname,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
