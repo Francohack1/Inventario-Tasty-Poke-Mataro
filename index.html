@@ -686,7 +686,9 @@ $("#doneMail").onclick=()=>{
   location.href="mailto:"+EMAIL+"?subject="+s+"&body="+b;
 };
 $("#doneNew").onclick=()=>{
-  S.counts={}; S.notas={}; save(); closeM("mDone"); render(); toast("Conteos limpiados. ¡Listo para el próximo!");
+  S.counts={}; S.notas={}; S.persona=""; save(); refreshPersona();
+  closeM("mDone"); render(); toast("Conteos limpiados. ¡Listo para el próximo!");
+  askPersona();
 };
 
 /* Historial */
