@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#0e7c66">
-<title>Inventario Bebidas — Tasty Poke Mataró</title>
+<title>Inventario — Tasty Poke Mataró</title>
 <style>
   :root{
     --bg:#f4f6f8; --card:#fff; --ink:#1c2733; --muted:#69788a; --line:#e3e9ef;
@@ -39,6 +39,10 @@
   .chip{border:1px solid var(--line); background:var(--card); border-radius:999px; padding:8px 14px;
     font-size:14px; cursor:pointer; color:var(--muted);}
   .chip.on{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .subchips{display:flex; gap:8px; flex-wrap:wrap; padding:0 14px 8px;}
+  .subchip{border:1px solid var(--line); background:var(--card); border-radius:999px; padding:7px 13px;
+    font-size:13.5px; cursor:pointer; color:var(--muted);}
+  .subchip.on{background:var(--accent); color:#fff; border-color:var(--accent);}
 
   #alertVenc{margin:0 14px 6px; background:#fdf3e3; border:1px solid #f0d9ac; color:#7a5200;
     border-radius:12px; padding:10px 14px; font-size:14px; display:none;}
@@ -50,6 +54,8 @@
   .fam-bar{width:5px; align-self:stretch; border-radius:4px; flex:none;}
   .fam-VINOS{background:var(--vinos);} .fam-CERV{background:var(--cervezas);}
   .fam-REFR{background:var(--refrescos);} .fam-ZUMO{background:var(--zumos);} .fam-OTRO{background:#7f8c8d;}
+  .fam-SAL{background:#c0392b;} .fam-COC{background:#a04000;} .fam-NEV{background:#5dade2;} .fam-ACAI{background:#9b59b6;} .fam-ENV{background:#34495e;}
+  .ctl button.sino-on{background:var(--accent); color:#fff;}
 
   .p-info{flex:1; min-width:130px; padding:2px 0;}
   .p-name{font-weight:650; font-size:16.5px; line-height:1.25;}
@@ -126,7 +132,7 @@
 <body>
 
 <header>
-  <h1>🥤 Inventario Bebidas · Mataró</h1>
+  <h1>📋 Inventario · Tasty Poke Mataró</h1>
   <div class="persona" id="personaBtn">👤 —</div>
   <button class="btn btn-ghost" id="ayudaBtn" title="Ayuda">❓</button>
   <button class="btn btn-ghost" id="histBtn">Historial</button>
@@ -134,11 +140,12 @@
 </header>
 
 <div class="toolbar">
-  <input type="search" id="buscar" placeholder="Buscar bebida…">
+  <input type="search" id="buscar" placeholder="Buscar producto…">
   <div class="chips" id="chips"></div>
-  <button class="btn btn-ghost" id="addBtn">＋ Agregar bebida</button>
+  <button class="btn btn-ghost" id="addBtn">＋ Agregar producto</button>
 </div>
 
+<div class="subchips" id="subchips" style="display:none"></div>
 <div id="alertVenc"></div>
 <main id="lista"></main>
 
@@ -164,6 +171,7 @@
       <button id="kpH">🧊 Heladera</button>
       <button id="kpA">📦 Almacén</button>
     </div>
+    <div class="kp-strip" id="kpQuick" style="display:none"></div>
     <div class="kp-display" id="kpDisplay">—</div>
     <div class="kp-grid">
       <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
@@ -205,7 +213,7 @@
 <!-- Agregar producto -->
 <div class="modal-bg" id="mAdd">
   <div class="modal">
-    <h2>Agregar bebida</h2>
+    <h2>Agregar producto</h2>
     <label>Nombre</label>
     <input type="text" id="addNombre" autocomplete="off">
     <label>Categoría</label>
@@ -215,6 +223,11 @@
       <option value="(C) VINOS Y CERVEZAS">Vinos</option>
       <option value="ZUMOS">Zumos</option>
       <option value="OTROS">Otros (leche, café, té)</option>
+      <option value="SALSAS">Salsas</option>
+      <option value="COCINA">Cocina</option>
+      <option value="NEVERA">Nevera</option>
+      <option value="ACAI">Açaí</option>
+      <option value="ENVASES">Envases</option>
     </select>
     <label>Descripción corta (opcional)</label>
     <input type="text" id="addDesc" autocomplete="off" placeholder="ej: incluye PET y vidrio">
@@ -273,12 +286,12 @@
 <div class="modal-bg" id="mAyuda">
   <div class="modal">
     <h2>¿Cómo se usa?</h2>
-    <div class="ayuda-item"><div class="ic">🧊📦</div><div><b>Heladera y Almacén</b>Contá cada zona por separado. Con − y ＋ vas de a uno, o tocá el número para escribir con el teclado grande. El Total se suma solo.</div></div>
+    <div class="ayuda-item"><div class="ic">🧊📦</div><div><b>Heladera y Almacén</b>Contá cada zona por separado (según el producto: Heladera/Almacén, Congelado/Descongelado, Cocina/Barra…). Con − y ＋ vas de a uno, o tocá el número para el teclado grande. Algunos productos tienen un solo contador o botones Sí/No de "suficiente". El Total se suma solo.</div></div>
     <div class="ayuda-item"><div class="ic">📝</div><div><b>Nota</b>Comentario opcional del producto (ej. "llegó caja rota"). Sale en el Excel.</div></div>
     <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Cuando falten 15 días o menos, la app avisa arriba al abrirla.</div></div>
-    <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>En leche, café y té: tocá 🛒 si queda poco y hay que reponer. Sale marcado en el Excel. Estos productos tienen un solo contador porque están en un solo lugar.</div></div>
-    <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre o tocá una categoría para encontrar rápido.</div></div>
-    <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar bebida</b>Para productos nuevos. Quedan guardados para los próximos inventarios.</div></div>
+    <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>En cualquier producto: tocá 🛒 si queda poco y hay que reponer. Sale marcado en el Excel.</div></div>
+    <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
+    <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar producto</b>Para productos nuevos. Quedan guardados para los próximos inventarios.</div></div>
     <div class="ayuda-item"><div class="ic">✋</div><div><b>Reordenar</b>Poné los productos en el orden en que están en el local: arrastrá desde ⠿. Ahí también está 🗑 para eliminar (pide confirmación). "Guardar orden" lo deja fijo.</div></div>
     <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra qué faltó contar, pide confirmar, y arma el Excel. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
     <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Inventarios anteriores, con opción de volver a bajar el Excel de cada uno.</div></div>
@@ -312,7 +325,6 @@ const SEED = [
 {"id": 534, "fam": "REFRESCOS", "nombre": "Agua (vidrio)", "desc": "", "bc": "6064", "unidad": "Unidad"},
 {"id": 0, "fam": "REFRESCOS", "nombre": "Agua (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
 {"id": 0, "fam": "REFRESCOS", "nombre": "Agua con gas 33cl", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 526, "fam": "REFRESCOS", "nombre": "Appletiser", "desc": "", "bc": "7511", "unidad": "Unidad"},
 {"id": 525, "fam": "REFRESCOS", "nombre": "Aquarius Limón (vidrio)", "desc": "", "bc": "224", "unidad": "Unidad"},
 {"id": 0, "fam": "REFRESCOS", "nombre": "Aquarius Limón (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
 {"id": 528, "fam": "REFRESCOS", "nombre": "Aquarius Naranja (vidrio)", "desc": "", "bc": "223", "unidad": "Unidad"},
@@ -321,27 +333,121 @@ const SEED = [
 {"id": 0, "fam": "REFRESCOS", "nombre": "Coca Cola (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
 {"id": 523, "fam": "REFRESCOS", "nombre": "Coca Cola Zero (vidrio)", "desc": "Incluye Zero Zero", "bc": "2631", "unidad": "Unidad"},
 {"id": 0, "fam": "REFRESCOS", "nombre": "Coca Cola Zero (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 524, "fam": "REFRESCOS", "nombre": "Fanta Limón", "desc": "", "bc": "2223", "unidad": "Unidad"},
-{"id": 527, "fam": "REFRESCOS", "nombre": "Fanta Naranja (vidrio)", "desc": "", "bc": "2123", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Fanta Naranja (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
 {"id": 537, "fam": "REFRESCOS", "nombre": "Fuze Tea (vidrio)", "desc": "", "bc": "4417", "unidad": "Unidad"},
 {"id": 0, "fam": "REFRESCOS", "nombre": "Fuze Tea (PET)", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 536, "fam": "REFRESCOS", "nombre": "Sprite (vidrio retornable)", "desc": "", "bc": "2550", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Sprite (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
+{"id": 536, "fam": "REFRESCOS", "nombre": "Sprite (PET 50cl)", "desc": "", "bc": "2550", "unidad": "Unidad"},
 {"id": 2642, "fam": "ZUMOS", "nombre": "Kombucha Red Fruit", "desc": "", "bc": "", "unidad": "Unidad"},
 {"id": 0, "fam": "ZUMOS", "nombre": "Kombucha Lemon & Ginger", "desc": "", "bc": "", "unidad": "Unidad"},
 {"id": 2666, "fam": "ZUMOS", "nombre": "Shot Jengibre/Manzana 60ml", "desc": "", "bc": "ETPC00458", "unidad": "Unidad"},
 {"id": 2663, "fam": "ZUMOS", "nombre": "Zumo Detox Garden 250ml", "desc": "", "bc": "ETPC00455", "unidad": "Unidad"},
 {"id": 2665, "fam": "ZUMOS", "nombre": "Zumo Samba Dream 250ml", "desc": "", "bc": "ETPC00457", "unidad": "Unidad"},
 {"id": 2664, "fam": "ZUMOS", "nombre": "Zumo Tropic Boost 250ml", "desc": "", "bc": "ETPC00456", "unidad": "Unidad"},
-{"id": 0, "fam": "OTROS", "nombre": "Leche", "desc": "", "bc": "", "unidad": "Unidad", "pedir": true, "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Café Descafeinado", "desc": "", "bc": "", "unidad": "Unidad", "pedir": true, "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Té", "desc": "", "bc": "", "unidad": "Unidad", "pedir": true, "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Té de Matcha", "desc": "", "bc": "", "unidad": "Unidad", "pedir": true, "solo": true}
+{"id": 0, "fam": "OTROS", "nombre": "Leche Entera", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "OTROS", "nombre": "Leche Semidesnatada Sin Lactosa", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "OTROS", "nombre": "Leche Vegetal (Avena)", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "OTROS", "nombre": "Café Descafeinado", "desc": "Medir en %", "bc": "", "unidad": "%", "solo": true},
+{"id": 0, "fam": "OTROS", "nombre": "Té Matcha", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "OTROS", "nombre": "Té Chai", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "OTROS", "nombre": "Té Roibos", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "OTROS", "nombre": "Té Verde", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "OTROS", "nombre": "Té Manzanilla", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Siracha", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Soy Cream", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Chili Mango", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Oli", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Original", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Pesto", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Original Trufada", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Teriyaki", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Dressing", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Ponzu", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Vegan Cream", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Soja Sin Gluten", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "SALSAS", "nombre": "Siracha Pura", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Aceituna negra rodajas 3kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Humus HECHO", "desc": "", "bc": "", "unidad": "Unidad", "sino": true},
+{"id": 0, "fam": "COCINA", "nombre": "Remolacha rallada 370g", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Tomates secos", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Zanahoria rallada 720", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Sésamo Negro", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Garbanzo lata 1kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Maíz dulce 1/2 kilo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Nutella", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Aceite de Sésamo / Tahini", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Tenkasu 1kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "AO Nori Ko - Alga verde en polvo", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Maíz frito Tierno Supreme 800g", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Cacahuete", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Crunchy Mix HECHO", "desc": "", "bc": "", "unidad": "Unidad", "sino": true},
+{"id": 0, "fam": "COCINA", "nombre": "Cebolla frita", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Chifle Tortolines - Bananitas", "desc": "Q cerrado (bolsas)", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Bowls Chips HECHO", "desc": "", "bc": "", "unidad": "Unidad", "sino": true},
+{"id": 0, "fam": "COCINA", "nombre": "Chips vegetales 1kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Soja 18L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Vinagre Japonés 18L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Aceite de Oliva 5L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Quinoa blanca (saco 10kg)", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Quinoa roja FFG (saco 10kg)", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Arroz Oriente largo integral 5kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Arroz Oriente Sushi 20kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Salsa de Trufa", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Queso Philadelphia 5kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Yogur cremoso 1kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Boniato cocido al vapor", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Cebolla caramelizada", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Salmón", "desc": "Q cerrado (entero)", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
+{"id": 0, "fam": "NEVERA", "nombre": "Lomo de Atún", "desc": "Q cerrado (entero)", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
+{"id": 0, "fam": "NEVERA", "nombre": "Pechuga de Pollo", "desc": "Q cerrado (entero)", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
+{"id": 0, "fam": "NEVERA", "nombre": "Salmón Ahumado", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Gross", "sino": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Jamón Serrano", "desc": "Q cerrada", "bc": "", "unidad": "Unidad", "prov": "Merc", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Langostino pelado congelado", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Masago naranja / huevas", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Jengibre", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "sino": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Hogaza 57% cereales rebanada", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Panad", "sino": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Pan payés rebanado", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Panad", "sino": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Bagels", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Europ", "sino": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Postre Oreo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["🧊 Nevera", "🍸 Barra"]},
+{"id": 0, "fam": "NEVERA", "nombre": "Muffin Carrot Cake 95g", "desc": "Q congelado", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Muffin Choco Bomb 110g", "desc": "Q congelado", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Edamame cáscara - Snack", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
+{"id": 0, "fam": "NEVERA", "nombre": "Edamame pelado “Hanabi” normal", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
+{"id": 0, "fam": "NEVERA", "nombre": "Wakame", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
+{"id": 0, "fam": "NEVERA", "nombre": "Heura Mediterranean Chunks", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
+{"id": 0, "fam": "NEVERA", "nombre": "Mango Keaw Chunks", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
+{"id": 0, "fam": "NEVERA", "nombre": "Perlas mozzarella", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Tofu natural", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "ACAI", "nombre": "Açaí Mix", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["🍳 Cocina", "🍸 Barra"]},
+{"id": 0, "fam": "ACAI", "nombre": "Granola", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["🍳 Cocina", "🍸 Barra"]},
+{"id": 0, "fam": "ACAI", "nombre": "Gotas de Chocolate", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Alma", "labels": ["🍳 Cocina", "🍸 Barra"]},
+{"id": 0, "fam": "ACAI", "nombre": "Semillas de Chía", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Merc", "solo": true},
+{"id": 0, "fam": "ACAI", "nombre": "Nueces", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "solo": true},
+{"id": 0, "fam": "ACAI", "nombre": "Anacardo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "labels": ["🍳 Cocina", "🍸 Barra"]},
+{"id": 0, "fam": "ACAI", "nombre": "Coco", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "labels": ["🍳 Cocina", "🍸 Barra"]},
+{"id": 0, "fam": "ACAI", "nombre": "Whey Protein", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
+{"id": 0, "fam": "ACAI", "nombre": "Crema Cacahuate", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true},
+{"id": 0, "fam": "ACAI", "nombre": "Crema Anacardo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true},
+{"id": 0, "fam": "ACAI", "nombre": "Crema Avellanas", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl 250 - Mini Açaí", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 350", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 500", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 750", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 1100", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 250", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 350", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 750 Mediano", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 1100 Grande", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
+{"id": 0, "fam": "ENVASES", "nombre": "Bolsa Tasty Poke", "desc": "Medir 1/2, 1/3, 1/4 caja", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Rollo pegatinas caducidad", "desc": "Q rollos nuevos", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Cuchara Blanca Açaí", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Cucharas madera", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Tenedor de madera", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Servilletas", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Palillos en funda bambú FPS", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Pegatina Gracias", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true}
 ];
 const EMAIL = "mataro@tastypokebar.com";
 const DIAS_ALERTA = 15;
-const LS_KEY = "invBebidasMataro_v7";
+const LS_KEY = "invBebidasMataro_v8";
 
 /* ================= ESTADO ================= */
 let S = load();
@@ -360,8 +466,9 @@ function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e)
 
 /* ================= HELPERS ================= */
 const $ = s=>document.querySelector(s);
-const famCls = f => f.includes("VINOS")?"fam-VINOS": f.includes("CERVEZAS Y")?"fam-CERV": f==="ZUMOS"?"fam-ZUMO": f==="OTROS"?"fam-OTRO":"fam-REFR";
-const famShort = f => f.includes("VINOS")?"Vinos": f.includes("CERVEZAS Y")?"Cervezas": f==="ZUMOS"?"Zumos": f==="OTROS"?"Otros":"Refrescos";
+const famCls = f => f.includes("VINOS")?"fam-VINOS": f.includes("CERVEZAS Y")?"fam-CERV": f==="ZUMOS"?"fam-ZUMO": f==="OTROS"?"fam-OTRO": f==="SALSAS"?"fam-SAL": f==="COCINA"?"fam-COC": f==="NEVERA"?"fam-NEV": f==="ACAI"?"fam-ACAI": f==="ENVASES"?"fam-ENV":"fam-REFR";
+const grupoDe = f => f==="ENVASES" ? "ENVASES" : ["SALSAS","COCINA","NEVERA","ACAI"].includes(f) ? "ALIMENTOS" : "BEBIDAS";
+const famShort = f => f.includes("VINOS")?"Vinos": f.includes("CERVEZAS Y")?"Cervezas": f==="ZUMOS"?"Zumos": f==="OTROS"?"Otros": f==="SALSAS"?"Salsas": f==="COCINA"?"Cocina": f==="NEVERA"?"Nevera": f==="ACAI"?"Açaí": f==="ENVASES"?"Envases":"Refrescos";
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 function cnt(k){ return S.counts[k] || {h:null,a:null}; }
 function totalOf(k){ const c=cnt(k); if(c.h==null && c.a==null) return null; return (c.h||0)+(c.a||0); }
@@ -379,13 +486,31 @@ document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",
 let filtro="", famFiltro="";
 let editMode=false;
 
-const FAMS=[["","Todas"],["REFRESCOS","Refrescos"],["CERVEZAS Y ALCOHOL","Cervezas"],["(C) VINOS Y CERVEZAS","Vinos"],["ZUMOS","Zumos"],["OTROS","Otros"],["ENV:vidrio","🍾 Vidrio"],["ENV:pet","🧴 Plástico"]];
+const FAMS=[["","Todas"],["G:BEBIDAS","🥤 Bebidas"],["G:ALIMENTOS","🍱 Alimentos"],["G:ENVASES","📦 Envases"]];
+const SUBS={
+  "G:BEBIDAS":[["REFRESCOS","Refrescos"],["CERVEZAS Y ALCOHOL","Cervezas"],["(C) VINOS Y CERVEZAS","Vinos"],["ZUMOS","Zumos y Kombuchas"],["OTROS","Leche, Café y Té"],["ENV:vidrio","🍾 Vidrio"],["ENV:pet","🧴 Plástico"]],
+  "G:ALIMENTOS":[["SALSAS","Salsas"],["COCINA","Cocina"],["NEVERA","Nevera y Congelados"],["ACAI","Açaí"]],
+  "G:ENVASES":[]
+};
+let subFiltro="";
 $("#chips").innerHTML = FAMS.map(([v,l])=>`<div class="chip${v===""?" on":""}" data-fam="${esc(v)}">${l}</div>`).join("");
+function renderSubchips(){
+  const subs=SUBS[famFiltro]||[];
+  const box=$("#subchips");
+  if(!subs.length){ box.style.display="none"; box.innerHTML=""; return; }
+  box.style.display="flex";
+  box.innerHTML=`<div class="subchip${subFiltro===""?" on":""}" data-sub="">Todas</div>`+
+    subs.map(([v,l])=>`<div class="subchip${subFiltro===v?" on":""}" data-sub="${esc(v)}">${l}</div>`).join("");
+}
 $("#chips").addEventListener("click",e=>{
   const c=e.target.closest(".chip"); if(!c) return;
-  famFiltro=c.dataset.fam;
+  famFiltro=c.dataset.fam; subFiltro="";
   document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===c));
-  render();
+  renderSubchips(); render();
+});
+$("#subchips").addEventListener("click",e=>{
+  const c=e.target.closest(".subchip"); if(!c) return;
+  subFiltro=c.dataset.sub; renderSubchips(); render();
 });
 $("#buscar").addEventListener("input",e=>{ filtro=e.target.value.trim().toLowerCase(); render(); });
 
@@ -393,25 +518,34 @@ function render(){
   const main=$("#lista");
   main.innerHTML="";
   S.productos.forEach(p=>{
-    if(famFiltro==="ENV:vidrio"){ if(!/\(vidrio/i.test(p.nombre)) return; }
-    else if(famFiltro==="ENV:pet"){ if(!/\(pet/i.test(p.nombre)) return; }
-    else if(famFiltro && p.fam!==famFiltro) return;
+    if(famFiltro && famFiltro.startsWith("G:") && grupoDe(p.fam)!==famFiltro.slice(2)) return;
+    if(subFiltro==="ENV:vidrio"){ if(!/\(vidrio/i.test(p.nombre)) return; }
+    else if(subFiltro==="ENV:pet"){ if(!/\(pet/i.test(p.nombre)) return; }
+    else if(subFiltro && p.fam!==subFiltro) return;
     if(filtro && !p.nombre.toLowerCase().includes(filtro)) return;
     const c=cnt(p.key), tot=totalOf(p.key);
     const nota=S.notas[p.key]||"";
     const lotes=S.lotes[p.key]||[];
     const proxVenc = lotes.map(l=>diasHasta(l)).sort((a,b)=>a-b)[0];
-    const counters = p.solo ? `
+    const L = p.labels || ["🧊 Heladera","📦 Almacén"];
+    const counters = p.sino ? `
       <div class="counter">
-        <div class="lbl">Cantidad</div>
+        <div class="lbl">Suficiente</div>
+        <div class="ctl">
+          <button data-sino="1" style="width:58px;font-size:16px" class="${c.h===1?"sino-on":""}">Sí</button>
+          <button data-sino="0" style="width:58px;font-size:16px" class="${c.h===0?"sino-on":""}">No</button>
+        </div>
+      </div>` : p.solo ? `
+      <div class="counter">
+        <div class="lbl">${p.unidad==="%"?"Porcentaje":"Cantidad"}</div>
         <div class="ctl">
           <button data-step="h,-1">−</button>
-          <div class="val ${c.h==null?"empty":""}" data-kp="h">${fmtN(c.h)}</div>
+          <div class="val ${c.h==null?"empty":""}" data-kp="h">${c.h==null?"—":fmtN(c.h)+(p.unidad==="%"?"%":"")}</div>
           <button data-step="h,1">＋</button>
         </div>
       </div>` : `
       <div class="counter">
-        <div class="lbl">🧊 Heladera</div>
+        <div class="lbl">${L[0]}</div>
         <div class="ctl">
           <button data-step="h,-1">−</button>
           <div class="val ${c.h==null?"empty":""}" data-kp="h">${fmtN(c.h)}</div>
@@ -419,7 +553,7 @@ function render(){
         </div>
       </div>
       <div class="counter">
-        <div class="lbl">📦 Almacén</div>
+        <div class="lbl">${L[1]}</div>
         <div class="ctl">
           <button data-step="a,-1">−</button>
           <div class="val ${c.a==null?"empty":""}" data-kp="a">${fmtN(c.a)}</div>
@@ -436,16 +570,17 @@ function render(){
         ${p.desc?`<div class="p-desc">${esc(p.desc)}</div>`:""}
         <div class="p-badges">
           <span class="badge">${famShort(p.fam)}</span>
+          ${p.prov?`<span class="badge">${esc(p.prov)}</span>`:""}
           ${nota?`<span class="badge">📝 ${esc(nota.length>28?nota.slice(0,28)+"…":nota)}</span>`:""}
           ${lotes.length?`<span class="badge ${proxVenc<=DIAS_ALERTA?"venc-soon":""}">📅 vence ${fmtFecha(lotes.slice().sort()[0])}</span>`:""}
           ${S.pedir[p.key]?`<span class="badge venc-soon">🛒 PEDIR</span>`:""}
         </div>
       </div>
       ${counters}
-      <div class="total"><div class="lbl">Total</div><div class="n ${tot?"":"zero"}">${fmtN(tot)}</div></div>
+      <div class="total"><div class="lbl">Total</div><div class="n ${tot==null?"zero":""}">${p.sino?(tot==null?"—":(c.h===1?"Sí":"No")):(tot==null?"—":fmtN(tot)+(p.unidad==="%"?"%":""))}</div></div>
       <button class="icon-btn ${nota?"active":""}" data-nota title="Nota">📝</button>
       <button class="icon-btn ${lotes.length?"active":""}" data-lotes title="Vencimiento">📅</button>
-      ${p.pedir?`<button class="icon-btn ${S.pedir[p.key]?"active":""}" data-pedir title="Hay que pedir">🛒</button>`:""}
+      <button class="icon-btn ${S.pedir[p.key]?"active":""}" data-pedir title="Hay que pedir">🛒</button>
       ${editMode?`<button class="icon-btn" data-del style="background:#fdecec;color:var(--danger)">🗑</button>`:""}
     `;
     main.appendChild(row);
@@ -468,16 +603,22 @@ function renderAlerta(){
 }
 
 /* ================= INTERACCIÓN LISTA ================= */
-let kpKey=null, kpStrip="h", kpVal="";
+let kpKey=null, kpStrip="h", kpVal="", kpPct=false;
 
 $("#lista").addEventListener("click",e=>{
   const row=e.target.closest(".row"); if(!row) return;
   const key=row.dataset.key;
   const p=S.productos.find(x=>x.key===key);
+  const sinoB=e.target.closest("[data-sino]");
+  if(sinoB){
+    const v=Number(sinoB.dataset.sino); const c=cnt(key);
+    S.counts[key]={...c, h:(c.h===v?null:v), a:null};
+    save(); render(); return;
+  }
   const step=e.target.closest("[data-step]");
   if(step){
     const [f,d]=step.dataset.step.split(",");
-    const c=cnt(key); const v=Math.max(0,(c[f]||0)+Number(d));
+    const c=cnt(key); let v=Math.max(0,(c[f]||0)+Number(d)); if(p.unidad==="%"){ v=Math.min(100,Math.max(0,(c[f]||0)+Number(d)*5)); }
     S.counts[key]={...c,[f]:v}; save(); render(); return;
   }
   const kp=e.target.closest("[data-kp]");
@@ -505,6 +646,12 @@ function openKeypad(key,strip,nombre){
   kpKey=key; kpStrip=strip;
   const prod=S.productos.find(x=>x.key===key);
   document.querySelector(".kp-strip").style.display = (prod&&prod.solo) ? "none" : "flex";
+  const L=(prod&&prod.labels)||["🧊 Heladera","📦 Almacén"];
+  $("#kpH").textContent=L[0]; $("#kpA").textContent=L[1];
+  kpPct = !!(prod && prod.unidad==="%");
+  const q=$("#kpQuick");
+  if(kpPct){ q.style.display="flex"; q.innerHTML=[0,25,50,75,100].map(v=>`<button data-q="${v}">${v}%</button>`).join(""); }
+  else q.style.display="none";
   const c=cnt(key); kpVal = c[strip]==null?"":String(c[strip]);
   $("#kpTitle").textContent=nombre;
   updateKp();
@@ -513,7 +660,7 @@ function openKeypad(key,strip,nombre){
 function updateKp(){
   $("#kpH").classList.toggle("on",kpStrip==="h");
   $("#kpA").classList.toggle("on",kpStrip==="a");
-  $("#kpDisplay").textContent = kpVal===""?"—":kpVal.replace(".",",");
+  $("#kpDisplay").textContent = kpVal===""?"—":kpVal.replace(".",",")+(kpPct?"%":"");
 }
 $("#kpH").onclick=()=>{ commitKp(); kpStrip="h"; const c=cnt(kpKey); kpVal=c.h==null?"":String(c.h); updateKp(); };
 $("#kpA").onclick=()=>{ commitKp(); kpStrip="a"; const c=cnt(kpKey); kpVal=c.a==null?"":String(c.a); updateKp(); };
@@ -525,6 +672,8 @@ function commitKp(){
   save();
 }
 $("#mKeypad").addEventListener("click",e=>{
+  const q=e.target.closest("[data-q]");
+  if(q){ kpVal=q.dataset.q; updateKp(); return; }
   const b=e.target.closest("[data-k]");
   if(!b){ if(e.target.id==="mKeypad"){ commitKp(); closeM("mKeypad"); render(); } return; }
   const k=b.dataset.k;
@@ -532,7 +681,7 @@ $("#mKeypad").addEventListener("click",e=>{
   if(k==="C"){ kpVal=""; }
   else if(k==="⌫"){ kpVal=kpVal.slice(0,-1); }
   else if(k==="."){ if(!kpVal.includes(".")) kpVal=(kpVal||"0")+"."; }
-  else { if(kpVal.replace(".","").length<5) kpVal=(kpVal==="0"?"":kpVal)+k; }
+  else { if(kpVal.replace(".","").length<5) kpVal=(kpVal==="0"?"":kpVal)+k; if(kpPct && parseFloat(kpVal)>100) kpVal="100"; }
   updateKp();
 });
 
@@ -662,13 +811,14 @@ $("#finOk").onclick=()=>{
   const rows=S.productos.map(p=>{
     const c=cnt(p.key);
     return {id:p.id||"", fam:p.fam, nombre:p.nombre, bc:p.bc, unidad:p.unidad,
+      prov:p.prov||"", sino:!!p.sino,
       h:c.h, a:c.a, total:totalOf(p.key), nota:S.notas[p.key]||"",
       lotes:(S.lotes[p.key]||[]).slice().sort().map(fmtFecha).join(", "), pedir:S.pedir[p.key]?"SÍ":""};
   });
   const inv={fecha:fstr, iso:fecha.toISOString(), persona, rows};
   S.history.unshift(inv); if(S.history.length>30) S.history.length=30;
   save();
-  lastFname="Inventario_Bebidas_Mataro_"+fstr.replace(/\//g,"-")+".xlsx";
+  lastFname="Inventario_Tasty_Mataro_"+fstr.replace(/\//g,"-")+".xlsx";
   lastBlob=buildXlsx(inv);
   closeM("mFin"); openM("mDone");
 };
@@ -693,8 +843,8 @@ $("#doneAuto").onclick=async()=>{
     const b64=await blobToB64(lastBlob);
     const r=await fetch(url,{method:"POST",body:JSON.stringify({
       filename:lastFname, b64,
-      subject:"Inventario bebidas Mataró — "+h.fecha+" ("+h.persona+")",
-      body:"Inventario de bebidas.\nFecha: "+h.fecha+"\nHecho por: "+h.persona+"\n\nEnviado automáticamente desde la app de inventario."})});
+      subject:"Inventario Mataró — "+h.fecha+" ("+h.persona+")",
+      body:"Inventario Tasty Poke Mataró.\nFecha: "+h.fecha+"\nHecho por: "+h.persona+"\n\nEnviado automáticamente desde la app de inventario."})});
     const j=await r.json();
     if(!j.ok) throw new Error(j.error||"error");
     btn.textContent="✅ Enviado a Mataró";
@@ -708,13 +858,13 @@ $("#doneShare").onclick=async()=>{
   try{
     const file=new File([lastBlob],lastFname,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:"Inventario bebidas", text:"Inventario de bebidas — enviar a "+EMAIL});
+      await navigator.share({files:[file], title:"Inventario Mataró", text:"Inventario de bebidas — enviar a "+EMAIL});
     } else { toast("Compartir no disponible: descargalo y adjuntalo"); downloadBlob(lastBlob,lastFname); }
   }catch(e){}
 };
 $("#doneMail").onclick=()=>{
   const s=encodeURIComponent("Inventario bebidas Mataró — "+(S.history[0]?S.history[0].fecha:"")+" ("+S.persona+")");
-  const b=encodeURIComponent("Hola,\n\nAdjunto el inventario de bebidas.\nHecho por: "+S.persona+"\n\n(Adjuntar el Excel descargado)");
+  const b=encodeURIComponent("Hola,\n\nAdjunto el inventario.\nHecho por: "+S.persona+"\n\n(Adjuntar el Excel descargado)");
   location.href="mailto:"+EMAIL+"?subject="+s+"&body="+b;
 };
 $("#doneNew").onclick=()=>{
@@ -730,6 +880,7 @@ function renderHist(){
       <div class="hist-item">
         <div class="info"><b>${h.fecha}</b> — ${esc(h.persona)}<br>
         <span class="muted">${h.rows.filter(r=>r.total!=null).length} productos contados</span></div>
+        <button class="btn btn-ghost" data-hm="${i}" title="Reenviar por correo">✉️</button>
         <button class="btn btn-ghost" data-hx="${i}">⬇️ Excel</button>
         <button class="icon-btn" data-hd="${i}" title="Borrar" style="background:#fdecec;color:var(--danger)">🗑</button>
       </div>`).join("")
@@ -737,6 +888,25 @@ function renderHist(){
 }
 $("#histBtn").onclick=()=>{ renderHist(); openM("mHist"); };
 $("#histList").addEventListener("click",e=>{
+  const m=e.target.closest("[data-hm]");
+  if(m){
+    const h=S.history[Number(m.dataset.hm)];
+    m.disabled=true; m.textContent="…";
+    (async()=>{
+      try{
+        const blob=buildXlsx(h);
+        const b64=await blobToB64(blob);
+        const url=localStorage.getItem(SCRIPT_KEY)||SCRIPT_URL_DEFAULT;
+        const r=await fetch(url,{method:"POST",body:JSON.stringify({
+          filename:"Inventario_Tasty_Mataro_"+h.fecha.replace(/\//g,"-")+".xlsx", b64,
+          subject:"Inventario Mataró (reenvío) — "+h.fecha+" ("+h.persona+")",
+          body:"Reenvío del inventario.\nFecha: "+h.fecha+"\nHecho por: "+h.persona})});
+        const j=await r.json(); if(!j.ok) throw 0;
+        m.textContent="✅"; toast("Reenviado a "+EMAIL);
+      }catch(err){ m.disabled=false; m.textContent="✉️"; toast("No se pudo reenviar. ¿Hay internet?"); }
+    })();
+    return;
+  }
   const d=e.target.closest("[data-hd]");
   if(d){
     const i=Number(d.dataset.hd), h=S.history[i];
@@ -778,11 +948,11 @@ function buildXlsx(inv){
 
   // Hoja 1: formato Ágora
   const h1=["Id","Familia","Nombre","Ubicación","Código Barras","Unidad","Stock Teórico (Uds. Venta)","Stock Real (Uds. Venta)"];
-  const s1=[h1, ...inv.rows.map(r=>[r.id===""?"":Number(r.id), r.fam, r.nombre, "", r.bc, r.unidad, "", r.total==null?"":r.total])];
+  const s1=[h1, ...inv.rows.map(r=>[r.id===""?"":Number(r.id), r.fam, r.nombre, "", r.bc, r.unidad, "", r.total==null?"":(r.sino?(r.total===1?"Sí":"No"):r.total)])];
   // Hoja 2: detalle
-  const h2=["Nombre","Heladera","Almacén","Total","Nota","Vencimientos","Pedir"];
-  const s2=[["Inventario de bebidas — Tasty Poke Mataró"],["Fecha", inv.fecha, "Hecho por", inv.persona],[],
-    h2, ...inv.rows.map(r=>[r.nombre, r.h==null?"":r.h, r.a==null?"":r.a, r.total==null?"":r.total, r.nota, r.lotes, r.pedir||""])];
+  const h2=["Nombre","Familia","Prov.","Zona 1","Zona 2","Total","Nota","Vencimientos","Pedir"];
+  const s2=[["Inventario — Tasty Poke Mataró"],["Fecha", inv.fecha, "Hecho por", inv.persona],[],
+    h2, ...inv.rows.map(r=>[r.nombre, r.fam||"", r.prov||"", r.sino?(r.h==null?"":(r.h===1?"Sí":"No")):(r.h==null?"":r.h), r.a==null?"":r.a, r.sino?"":(r.total==null?"":r.total), r.nota, r.lotes, r.pedir||""])];
 
   const files=[
     ["[Content_Types].xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
