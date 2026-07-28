@@ -51,6 +51,7 @@
   .row{background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:8px;
     display:flex; align-items:center; gap:8px; padding:8px 10px; position:relative;}
   .row.uncounted-flash{outline:2px solid var(--warn);}
+  .row.bajo-min{background:#fdecec; border-color:#f5b7b1;}
   .fam-bar{width:5px; align-self:stretch; border-radius:4px; flex:none;}
   .fam-VINOS{background:var(--vinos);} .fam-CERV{background:var(--cervezas);}
   .fam-REFR{background:var(--refrescos);} .fam-ZUMO{background:var(--zumos);} .fam-OTRO{background:#7f8c8d;}
@@ -80,6 +81,11 @@
   .total .lbl{font-size:11px; color:var(--muted); text-transform:uppercase;}
   .total .n{font-size:21px; font-weight:800; color:var(--accent2);}
   .total .n.zero{color:#b8c2cc; font-weight:500;}
+  .minbox{flex:none; width:56px; text-align:center;}
+  .minbox .lbl{font-size:11px; color:var(--muted); text-transform:uppercase;}
+  .minbox .n{font-size:19px; font-weight:700; color:var(--muted);}
+  .minbox.alerta .n{color:var(--danger);}
+  .minbox.alerta .lbl{color:var(--danger);}
 
   .handle{cursor:grab; touch-action:none; font-size:20px; color:#aab6c2; padding:0 4px; flex:none;}
   .row.dragging{opacity:.55; border-color:var(--accent);}
@@ -134,9 +140,10 @@
 <header>
   <h1>📋 Inventario · Tasty Poke Mataró</h1>
   <div class="persona" id="personaBtn">👤 —</div>
+  <span id="syncTag" style="font-size:12px;color:var(--muted)"></span>
   <button class="btn btn-ghost" id="ayudaBtn" title="Ayuda">❓</button>
   <button class="btn btn-ghost" id="histBtn">Historial</button>
-  <button class="btn btn-ghost" id="ordenBtn">✋ Reordenar</button>
+  <button class="btn btn-ghost" id="ordenBtn">✏️ Editar</button>
 </header>
 
 <div class="toolbar">
@@ -289,10 +296,10 @@
     <div class="ayuda-item"><div class="ic">🧊📦</div><div><b>Heladera y Almacén</b>Contá cada zona por separado (según el producto: Heladera/Almacén, Congelado/Descongelado, Cocina/Barra…). Con − y ＋ vas de a uno, o tocá el número para el teclado grande. Algunos productos tienen un solo contador o botones Sí/No de "suficiente". El Total se suma solo.</div></div>
     <div class="ayuda-item"><div class="ic">📝</div><div><b>Nota</b>Comentario opcional del producto (ej. "llegó caja rota"). Sale en el Excel.</div></div>
     <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Cuando falten 15 días o menos, la app avisa arriba al abrirla.</div></div>
-    <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>En cualquier producto: tocá 🛒 si queda poco y hay que reponer. Sale marcado en el Excel.</div></div>
+    <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>Tocá 🛒 si hay que reponer. Además, cada producto tiene un <b style="display:inline">mínimo</b>: si el total queda en ese número o por debajo, la fila se pone roja y se marca 🛒 sola; si después subís la cantidad por encima del mínimo, se desmarca sola. Todo sale en el Excel.</div></div>
     <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
-    <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar producto</b>Para productos nuevos. Quedan guardados para los próximos inventarios.</div></div>
-    <div class="ayuda-item"><div class="ic">✋</div><div><b>Reordenar</b>Poné los productos en el orden en que están en el local: arrastrá desde ⠿. Ahí también está 🗑 para eliminar (pide confirmación). "Guardar orden" lo deja fijo.</div></div>
+    <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar producto</b>Para productos nuevos. Se guardan para los próximos inventarios y aparecen en todos los dispositivos (igual que al eliminar o reordenar).</div></div>
+    <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para poner los productos en el orden del local, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo de cada uno, y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
     <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra qué faltó contar, pide confirmar, y arma el Excel. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
     <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Inventarios anteriores, con opción de volver a bajar el Excel de cada uno.</div></div>
     <div class="ayuda-item" style="border-bottom:none"><div class="ic">💾</div><div><b>Guardado automático</b>Todo se guarda al instante. Podés cerrar la app o apagar la tablet y seguir después donde quedaste.</div></div>
@@ -314,152 +321,159 @@
 <script>
 /* ================= DATOS INICIALES ================= */
 const SEED = [
-{"id": 1756, "fam": "(C) VINOS Y CERVEZAS", "nombre": "Beronia Crianza", "desc": "Vino Tinto", "bc": "ETPC00178", "unidad": "Unidad"},
-{"id": 543, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Alhambra", "desc": "", "bc": "24207", "unidad": "Unidad"},
-{"id": 541, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Corona", "desc": "", "bc": "3814", "unidad": "Unidad"},
-{"id": 540, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Mahou 00 Tostada", "desc": "", "bc": "2694", "unidad": "Unidad"},
-{"id": 539, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Mahou 5 Estrellas", "desc": "Incluye NR y quinto", "bc": "653", "unidad": "Unidad"},
-{"id": 2349, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Mahou Sin Alcohol", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 544, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Mahou sin Gluten", "desc": "", "bc": "1813", "unidad": "Unidad"},
-{"id": 542, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Radler", "desc": "", "bc": "3096", "unidad": "Unidad"},
-{"id": 534, "fam": "REFRESCOS", "nombre": "Agua (vidrio)", "desc": "", "bc": "6064", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Agua (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Agua con gas 33cl", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 525, "fam": "REFRESCOS", "nombre": "Aquarius Limón (vidrio)", "desc": "", "bc": "224", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Aquarius Limón (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 528, "fam": "REFRESCOS", "nombre": "Aquarius Naranja (vidrio)", "desc": "", "bc": "223", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Aquarius Naranja (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 522, "fam": "REFRESCOS", "nombre": "Coca Cola (vidrio)", "desc": "", "bc": "3023", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Coca Cola (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 523, "fam": "REFRESCOS", "nombre": "Coca Cola Zero (vidrio)", "desc": "Incluye Zero Zero", "bc": "2631", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Coca Cola Zero (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 537, "fam": "REFRESCOS", "nombre": "Fuze Tea (vidrio)", "desc": "", "bc": "4417", "unidad": "Unidad"},
-{"id": 0, "fam": "REFRESCOS", "nombre": "Fuze Tea (PET)", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 536, "fam": "REFRESCOS", "nombre": "Sprite (PET 50cl)", "desc": "", "bc": "2550", "unidad": "Unidad"},
-{"id": 2642, "fam": "ZUMOS", "nombre": "Kombucha Red Fruit", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 0, "fam": "ZUMOS", "nombre": "Kombucha Lemon & Ginger", "desc": "", "bc": "", "unidad": "Unidad"},
-{"id": 2666, "fam": "ZUMOS", "nombre": "Shot Jengibre/Manzana 60ml", "desc": "", "bc": "ETPC00458", "unidad": "Unidad"},
-{"id": 2663, "fam": "ZUMOS", "nombre": "Zumo Detox Garden 250ml", "desc": "", "bc": "ETPC00455", "unidad": "Unidad"},
-{"id": 2665, "fam": "ZUMOS", "nombre": "Zumo Samba Dream 250ml", "desc": "", "bc": "ETPC00457", "unidad": "Unidad"},
-{"id": 2664, "fam": "ZUMOS", "nombre": "Zumo Tropic Boost 250ml", "desc": "", "bc": "ETPC00456", "unidad": "Unidad"},
-{"id": 0, "fam": "OTROS", "nombre": "Leche Entera", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Leche Semidesnatada Sin Lactosa", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Leche Vegetal (Avena)", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Café Descafeinado", "desc": "Medir en %", "bc": "", "unidad": "%", "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Té Matcha", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Té Chai", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Té Roibos", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Té Verde", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "OTROS", "nombre": "Té Manzanilla", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Siracha", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Soy Cream", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Chili Mango", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Oli", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Original", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Pesto", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Original Trufada", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Teriyaki", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Dressing", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Ponzu", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Salsa Vegan Cream", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Soja Sin Gluten", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "SALSAS", "nombre": "Siracha Pura", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Aceituna negra rodajas 3kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 1756, "fam": "(C) VINOS Y CERVEZAS", "nombre": "Beronia Crianza", "desc": "Vino Tinto", "bc": "ETPC00178", "unidad": "Unidad", "min": 3},
+{"id": 543, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Alhambra", "desc": "", "bc": "24207", "unidad": "Unidad", "min": 7},
+{"id": 541, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Corona", "desc": "", "bc": "3814", "unidad": "Unidad", "min": 5},
+{"id": 540, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Mahou 00 Tostada", "desc": "", "bc": "2694", "unidad": "Unidad", "min": 5},
+{"id": 539, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Mahou 5 Estrellas", "desc": "Incluye NR y quinto", "bc": "653", "unidad": "Unidad", "min": 10},
+{"id": 2349, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Mahou Sin Alcohol", "desc": "", "bc": "C00140", "unidad": "Unidad", "min": 5},
+{"id": 544, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Mahou sin Gluten", "desc": "", "bc": "1813", "unidad": "Unidad", "min": 5},
+{"id": 542, "fam": "CERVEZAS Y ALCOHOL", "nombre": "Radler", "desc": "", "bc": "3096", "unidad": "Unidad", "min": 5},
+{"id": 534, "fam": "REFRESCOS", "nombre": "Agua (vidrio)", "desc": "", "bc": "6064", "unidad": "Unidad", "min": 25},
+{"id": 0, "fam": "REFRESCOS", "nombre": "Agua (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad", "min": 10},
+{"id": 0, "fam": "REFRESCOS", "nombre": "Agua con gas 33cl", "desc": "", "bc": "", "unidad": "Unidad", "min": 7},
+{"id": 525, "fam": "REFRESCOS", "nombre": "Aquarius Limón (vidrio)", "desc": "", "bc": "224", "unidad": "Unidad", "min": 7},
+{"id": 0, "fam": "REFRESCOS", "nombre": "Aquarius Limón (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad", "min": 5},
+{"id": 528, "fam": "REFRESCOS", "nombre": "Aquarius Naranja (vidrio)", "desc": "", "bc": "223", "unidad": "Unidad", "min": 5},
+{"id": 0, "fam": "REFRESCOS", "nombre": "Aquarius Naranja (PET 50cl)", "desc": "", "bc": "", "unidad": "Unidad", "min": 5},
+{"id": 522, "fam": "REFRESCOS", "nombre": "Coca Cola (vidrio)", "desc": "", "bc": "3023", "unidad": "Unidad", "min": 18},
+{"id": 0, "fam": "REFRESCOS", "nombre": "Coca Cola (PET 50cl)", "desc": "", "bc": "C00131", "unidad": "Unidad", "min": 12},
+{"id": 523, "fam": "REFRESCOS", "nombre": "Coca Cola Zero (vidrio)", "desc": "Incluye Zero Zero", "bc": "2631", "unidad": "Unidad", "min": 24},
+{"id": 0, "fam": "REFRESCOS", "nombre": "Coca Cola Zero (PET 50cl)", "desc": "", "bc": "C00132", "unidad": "Unidad", "min": 12},
+{"id": 537, "fam": "REFRESCOS", "nombre": "Fuze Tea (vidrio)", "desc": "", "bc": "4417", "unidad": "Unidad", "min": 5},
+{"id": 0, "fam": "REFRESCOS", "nombre": "Fuze Tea (PET)", "desc": "", "bc": "C00381", "unidad": "Unidad", "min": 5},
+{"id": 536, "fam": "REFRESCOS", "nombre": "Sprite (PET 50cl)", "desc": "", "bc": "2550", "unidad": "Unidad", "min": 5},
+{"id": 2642, "fam": "ZUMOS", "nombre": "Kombucha Red Fruit", "desc": "", "bc": "", "unidad": "Unidad", "min": 3},
+{"id": 0, "fam": "ZUMOS", "nombre": "Kombucha Lemon & Ginger", "desc": "", "bc": "", "unidad": "Unidad", "min": 3},
+{"id": 2666, "fam": "ZUMOS", "nombre": "Shot Jengibre/Manzana 60ml", "desc": "", "bc": "ETPC00458", "unidad": "Unidad", "min": 3},
+{"id": 2663, "fam": "ZUMOS", "nombre": "Zumo Detox Garden 250ml", "desc": "", "bc": "ETPC00455", "unidad": "Unidad", "min": 6},
+{"id": 2665, "fam": "ZUMOS", "nombre": "Zumo Samba Dream 250ml", "desc": "", "bc": "ETPC00457", "unidad": "Unidad", "min": 6},
+{"id": 2664, "fam": "ZUMOS", "nombre": "Zumo Tropic Boost 250ml", "desc": "", "bc": "ETPC00456", "unidad": "Unidad", "min": 6},
+{"id": 0, "fam": "OTROS", "nombre": "Leche Entera", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 2},
+{"id": 0, "fam": "OTROS", "nombre": "Leche Semidesnatada Sin Lactosa", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 2},
+{"id": 0, "fam": "OTROS", "nombre": "Leche Vegetal (Avena)", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 2},
+{"id": 0, "fam": "OTROS", "nombre": "Café Descafeinado", "desc": "Medir en %", "bc": "", "unidad": "%", "solo": true, "min": 25},
+{"id": 0, "fam": "OTROS", "nombre": "Té Matcha", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 5},
+{"id": 0, "fam": "OTROS", "nombre": "Té Chai", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 5},
+{"id": 0, "fam": "OTROS", "nombre": "Té Roibos", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 5},
+{"id": 0, "fam": "OTROS", "nombre": "Té Verde", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 5},
+{"id": 0, "fam": "OTROS", "nombre": "Té Manzanilla", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 5},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Siracha", "desc": "", "bc": "ETPC00054", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 10},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Soy Cream", "desc": "", "bc": "ETPC00050", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 9},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Chili Mango", "desc": "", "bc": "ETPC00046", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 7},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Oli", "desc": "", "bc": "ETPC00052", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 10},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Original", "desc": "", "bc": "ETPC00053", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 12},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Pesto", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 6},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Original Trufada", "desc": "", "bc": "ETPC00180", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 7},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Teriyaki", "desc": "", "bc": "ETPC00055", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 10},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Tasty Dressing", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Ponzu", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "SALSAS", "nombre": "Salsa Vegan Cream", "desc": "", "bc": "ETPC00281", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "SALSAS", "nombre": "Soja Sin Gluten", "desc": "", "bc": "C00049", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 2},
+{"id": 0, "fam": "SALSAS", "nombre": "Siracha Pura", "desc": "", "bc": "C00051", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 1},
+{"id": 0, "fam": "COCINA", "nombre": "Aceituna negra rodajas 3kg", "desc": "", "bc": "ETPC00376", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 3},
 {"id": 0, "fam": "COCINA", "nombre": "Humus HECHO", "desc": "", "bc": "", "unidad": "Unidad", "sino": true},
-{"id": 0, "fam": "COCINA", "nombre": "Remolacha rallada 370g", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Tomates secos", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Zanahoria rallada 720", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Sésamo Negro", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Garbanzo lata 1kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Maíz dulce 1/2 kilo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Nutella", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Aceite de Sésamo / Tahini", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Tenkasu 1kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "AO Nori Ko - Alga verde en polvo", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Maíz frito Tierno Supreme 800g", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Cacahuete", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Remolacha rallada 370g", "desc": "", "bc": "ETPC00373", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 6},
+{"id": 0, "fam": "COCINA", "nombre": "Tomates secos", "desc": "", "bc": "ETPC00258", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 4},
+{"id": 0, "fam": "COCINA", "nombre": "Zanahoria rallada 720", "desc": "", "bc": "ETPC00372", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "COCINA", "nombre": "Sésamo Negro", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 2},
+{"id": 0, "fam": "COCINA", "nombre": "Garbanzo lata 1kg", "desc": "", "bc": "ETPC00375", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "COCINA", "nombre": "Maíz dulce 1/2 kilo", "desc": "", "bc": "ETPC00374", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 10},
+{"id": 0, "fam": "COCINA", "nombre": "Nutella", "desc": "", "bc": "ETPC00208", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 1},
+{"id": 0, "fam": "COCINA", "nombre": "Aceite de Sésamo / Tahini", "desc": "Medir 1/2, 1/3, 1/4", "bc": "C00045", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 0.5},
+{"id": 0, "fam": "COCINA", "nombre": "Tenkasu 1kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "C00065", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 2},
+{"id": 0, "fam": "COCINA", "nombre": "AO Nori Ko - Alga verde en polvo", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 1},
+{"id": 0, "fam": "COCINA", "nombre": "Maíz frito Tierno Supreme 800g", "desc": "", "bc": "ETPC00361", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "COCINA", "nombre": "Cacahuete", "desc": "", "bc": "ETPC00201", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 4},
 {"id": 0, "fam": "COCINA", "nombre": "Crunchy Mix HECHO", "desc": "", "bc": "", "unidad": "Unidad", "sino": true},
-{"id": 0, "fam": "COCINA", "nombre": "Cebolla frita", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Chifle Tortolines - Bananitas", "desc": "Q cerrado (bolsas)", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
+{"id": 0, "fam": "COCINA", "nombre": "Cebolla frita", "desc": "", "bc": "ETPC00267", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 7},
+{"id": 0, "fam": "COCINA", "nombre": "Chifle Tortolines - Bananitas", "desc": "Q cerrado (bolsas)", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 3},
 {"id": 0, "fam": "COCINA", "nombre": "Bowls Chips HECHO", "desc": "", "bc": "", "unidad": "Unidad", "sino": true},
-{"id": 0, "fam": "COCINA", "nombre": "Chips vegetales 1kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Soja 18L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Vinagre Japonés 18L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Aceite de Oliva 5L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Com", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Quinoa blanca (saco 10kg)", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Quinoa roja FFG (saco 10kg)", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Arroz Oriente largo integral 5kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "COCINA", "nombre": "Arroz Oriente Sushi 20kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Salsa de Trufa", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Queso Philadelphia 5kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Yogur cremoso 1kg", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Boniato cocido al vapor", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Cebolla caramelizada", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Salmón", "desc": "Q cerrado (entero)", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
-{"id": 0, "fam": "NEVERA", "nombre": "Lomo de Atún", "desc": "Q cerrado (entero)", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
-{"id": 0, "fam": "NEVERA", "nombre": "Pechuga de Pollo", "desc": "Q cerrado (entero)", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
-{"id": 0, "fam": "NEVERA", "nombre": "Salmón Ahumado", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Gross", "sino": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Jamón Serrano", "desc": "Q cerrada", "bc": "", "unidad": "Unidad", "prov": "Merc", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Langostino pelado congelado", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Masago naranja / huevas", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Jengibre", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Com", "sino": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Hogaza 57% cereales rebanada", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Panad", "sino": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Pan payés rebanado", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Panad", "sino": true},
+{"id": 0, "fam": "COCINA", "nombre": "Chips vegetales 1kg", "desc": "", "bc": "ETPC00246", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 3},
+{"id": 0, "fam": "COCINA", "nombre": "Soja 18L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "C00048", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 1},
+{"id": 0, "fam": "COCINA", "nombre": "Vinagre Japonés 18L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "C00074", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 1},
+{"id": 0, "fam": "COCINA", "nombre": "Aceite de Oliva 5L", "desc": "Medir 1/2, 1/3, 1/4", "bc": "C00083", "unidad": "Unidad", "prov": "Com", "solo": true, "min": 0.25},
+{"id": 0, "fam": "COCINA", "nombre": "Quinoa blanca (saco 10kg)", "desc": "Medir 1/2, 1/3, 1/4", "bc": "ETPC00233", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 1},
+{"id": 0, "fam": "COCINA", "nombre": "Quinoa roja FFG (saco 10kg)", "desc": "Medir 1/2, 1/3, 1/4", "bc": "ETPC00240", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 1},
+{"id": 0, "fam": "COCINA", "nombre": "Arroz Oriente largo integral 5kg", "desc": "", "bc": "ETPC00257", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "COCINA", "nombre": "Arroz Oriente Sushi 20kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "ETPC00196", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "COCINA", "nombre": "Hojas Alga Nori", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "NEVERA", "nombre": "Salsa de Trufa", "desc": "", "bc": "ETPC00260", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 3},
+{"id": 0, "fam": "NEVERA", "nombre": "Queso Philadelphia 5kg", "desc": "Medir 1/2, 1/3, 1/4", "bc": "ETPC00103", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "NEVERA", "nombre": "Yogur cremoso 1kg", "desc": "", "bc": "ETPC00236", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "NEVERA", "nombre": "Boniato cocido al vapor", "desc": "", "bc": "ETPC00360", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 3},
+{"id": 0, "fam": "NEVERA", "nombre": "Cebolla caramelizada", "desc": "", "bc": "ETPC00417", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 4},
+{"id": 0, "fam": "NEVERA", "nombre": "Salmón", "desc": "Q cerrado (entero)", "bc": "ETPC00413", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."], "min": 20},
+{"id": 0, "fam": "NEVERA", "nombre": "Lomo de Atún", "desc": "Q cerrado (entero)", "bc": "ETPC00421", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."], "min": 20},
+{"id": 0, "fam": "NEVERA", "nombre": "Pechuga de Pollo", "desc": "Q cerrado (entero)", "bc": "ETPC00300", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."], "min": 6},
+{"id": 0, "fam": "NEVERA", "nombre": "Salmón Ahumado", "desc": "", "bc": "C00326", "unidad": "Unidad", "prov": "Gross", "sino": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Jamón Serrano", "desc": "Q cerrada", "bc": "", "unidad": "Unidad", "prov": "Merc", "solo": true, "min": 2},
+{"id": 0, "fam": "NEVERA", "nombre": "Langostino pelado congelado", "desc": "Medir 1/2, 1/3, 1/4", "bc": "ETPC00206", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 0.5},
+{"id": 0, "fam": "NEVERA", "nombre": "Masago naranja / huevas", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 1},
+{"id": 0, "fam": "NEVERA", "nombre": "Jengibre", "desc": "", "bc": "C00098", "unidad": "Unidad", "prov": "Com", "sino": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Hogaza 57% cereales rebanada", "desc": "", "bc": "ETPC00324", "unidad": "Unidad", "prov": "Panad", "sino": true},
+{"id": 0, "fam": "NEVERA", "nombre": "Pan payés rebanado", "desc": "", "bc": "ETPC00322", "unidad": "Unidad", "prov": "Panad", "sino": true},
 {"id": 0, "fam": "NEVERA", "nombre": "Bagels", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Europ", "sino": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Postre Oreo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["🧊 Nevera", "🍸 Barra"]},
-{"id": 0, "fam": "NEVERA", "nombre": "Muffin Carrot Cake 95g", "desc": "Q congelado", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Muffin Choco Bomb 110g", "desc": "Q congelado", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Edamame cáscara - Snack", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
-{"id": 0, "fam": "NEVERA", "nombre": "Edamame pelado “Hanabi” normal", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
-{"id": 0, "fam": "NEVERA", "nombre": "Wakame", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
-{"id": 0, "fam": "NEVERA", "nombre": "Heura Mediterranean Chunks", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
-{"id": 0, "fam": "NEVERA", "nombre": "Mango Keaw Chunks", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."]},
-{"id": 0, "fam": "NEVERA", "nombre": "Perlas mozzarella", "desc": "Medir 1/2, 1/3, 1/4", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "NEVERA", "nombre": "Tofu natural", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "ACAI", "nombre": "Açaí Mix", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["🍳 Cocina", "🍸 Barra"]},
-{"id": 0, "fam": "ACAI", "nombre": "Granola", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["🍳 Cocina", "🍸 Barra"]},
-{"id": 0, "fam": "ACAI", "nombre": "Gotas de Chocolate", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Alma", "labels": ["🍳 Cocina", "🍸 Barra"]},
-{"id": 0, "fam": "ACAI", "nombre": "Semillas de Chía", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Merc", "solo": true},
-{"id": 0, "fam": "ACAI", "nombre": "Nueces", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "solo": true},
-{"id": 0, "fam": "ACAI", "nombre": "Anacardo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "labels": ["🍳 Cocina", "🍸 Barra"]},
-{"id": 0, "fam": "ACAI", "nombre": "Coco", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "labels": ["🍳 Cocina", "🍸 Barra"]},
-{"id": 0, "fam": "ACAI", "nombre": "Whey Protein", "desc": "", "bc": "", "unidad": "Unidad", "solo": true},
-{"id": 0, "fam": "ACAI", "nombre": "Crema Cacahuate", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true},
-{"id": 0, "fam": "ACAI", "nombre": "Crema Anacardo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true},
-{"id": 0, "fam": "ACAI", "nombre": "Crema Avellanas", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true},
-{"id": 0, "fam": "ENVASES", "nombre": "Bowl 250 - Mini Açaí", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 350", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 500", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 750", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 1100", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 250", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 350", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 750 Mediano", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 1100 Grande", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"]},
-{"id": 0, "fam": "ENVASES", "nombre": "Bolsa Tasty Poke", "desc": "Medir 1/2, 1/3, 1/4 caja", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "ENVASES", "nombre": "Rollo pegatinas caducidad", "desc": "Q rollos nuevos", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "ENVASES", "nombre": "Cuchara Blanca Açaí", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "ENVASES", "nombre": "Cucharas madera", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "ENVASES", "nombre": "Tenedor de madera", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true},
-{"id": 0, "fam": "ENVASES", "nombre": "Servilletas", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true},
-{"id": 0, "fam": "ENVASES", "nombre": "Palillos en funda bambú FPS", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true},
-{"id": 0, "fam": "ENVASES", "nombre": "Pegatina Gracias", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true}
+{"id": 0, "fam": "NEVERA", "nombre": "Postre Oreo", "desc": "", "bc": "ETPC00367", "unidad": "Unidad", "prov": "Log", "labels": ["🧊 Nevera", "🍸 Barra"], "min": 15},
+{"id": 0, "fam": "NEVERA", "nombre": "Muffin Carrot Cake 95g", "desc": "Q congelado", "bc": "ETPC00321", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "NEVERA", "nombre": "Muffin Choco Bomb 110g", "desc": "Q congelado", "bc": "ETPC00320", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "NEVERA", "nombre": "Edamame cáscara - Snack", "desc": "", "bc": "ETPC00148", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."], "min": 3},
+{"id": 0, "fam": "NEVERA", "nombre": "Edamame pelado “Hanabi” normal", "desc": "", "bc": "ETPC00370", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."], "min": 18},
+{"id": 0, "fam": "NEVERA", "nombre": "Wakame", "desc": "", "bc": "ETPC00415", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."], "min": 9},
+{"id": 0, "fam": "NEVERA", "nombre": "Heura Mediterranean Chunks", "desc": "", "bc": "ETPC00216", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."], "min": 5},
+{"id": 0, "fam": "NEVERA", "nombre": "Mango Keaw Chunks", "desc": "", "bc": "ETPC00380", "unidad": "Unidad", "prov": "Log", "labels": ["❄️ Congelado", "🧊 Descong."], "min": 15},
+{"id": 0, "fam": "NEVERA", "nombre": "Perlas mozzarella", "desc": "Medir 1/2, 1/3, 1/4", "bc": "ETPC00254", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "NEVERA", "nombre": "Tofu natural", "desc": "", "bc": "ETPC00203", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 6},
+{"id": 0, "fam": "NEVERA", "nombre": "Baguetina sin gluten", "desc": "", "bc": "ETPC00323", "unidad": "Unidad", "prov": "Log", "sino": true},
+{"id": 0, "fam": "ACAI", "nombre": "Açaí Mix", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["🍳 Cocina", "🍸 Barra"], "min": 6},
+{"id": 0, "fam": "ACAI", "nombre": "Granola", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["🍳 Cocina", "🍸 Barra"], "min": 3},
+{"id": 0, "fam": "ACAI", "nombre": "Gotas de Chocolate", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Alma", "labels": ["🍳 Cocina", "🍸 Barra"], "min": 3},
+{"id": 0, "fam": "ACAI", "nombre": "Semillas de Chía", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Merc", "solo": true, "min": 3},
+{"id": 0, "fam": "ACAI", "nombre": "Nueces", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "solo": true, "min": 3},
+{"id": 0, "fam": "ACAI", "nombre": "Anacardo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "labels": ["🍳 Cocina", "🍸 Barra"], "min": 1},
+{"id": 0, "fam": "ACAI", "nombre": "Coco", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Full G", "labels": ["🍳 Cocina", "🍸 Barra"], "min": 1},
+{"id": 0, "fam": "ACAI", "nombre": "Whey Protein", "desc": "", "bc": "", "unidad": "Unidad", "solo": true, "min": 0.5},
+{"id": 0, "fam": "ACAI", "nombre": "Crema Cacahuate", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true, "min": 3},
+{"id": 0, "fam": "ACAI", "nombre": "Crema Anacardo", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true, "min": 1},
+{"id": 0, "fam": "ACAI", "nombre": "Crema Avellanas", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Plan H", "solo": true, "min": 3},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl 250 - Mini Açaí", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 10},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 350", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 10},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 500", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 10},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 750", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 12},
+{"id": 0, "fam": "ENVASES", "nombre": "Bowl personalizado 1100", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 12},
+{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 250", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 10},
+{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 350", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 10},
+{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 750 Mediano", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 20},
+{"id": 0, "fam": "ENVASES", "nombre": "Tapa bowl 1100 Grande", "desc": "Q bolsas", "bc": "", "unidad": "Unidad", "prov": "Log", "labels": ["📦 Almacén", "🍸 Barra"], "min": 12},
+{"id": 0, "fam": "ENVASES", "nombre": "Bolsa Tasty Poke", "desc": "Medir 1/2, 1/3, 1/4 caja", "bc": "ETPC00357", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "ENVASES", "nombre": "Rollo pegatinas caducidad", "desc": "Q rollos nuevos", "bc": "ETPC00186", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "ENVASES", "nombre": "Cuchara Blanca Açaí", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 1},
+{"id": 0, "fam": "ENVASES", "nombre": "Cucharas madera", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 2},
+{"id": 0, "fam": "ENVASES", "nombre": "Tenedor de madera", "desc": "Q paquetes", "bc": "ETPC00348", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 5},
+{"id": 0, "fam": "ENVASES", "nombre": "Servilletas", "desc": "", "bc": "ETPC00343", "unidad": "Unidad", "prov": "Log", "sino": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Palillos en funda bambú FPS", "desc": "", "bc": "ETPC00351", "unidad": "Unidad", "prov": "Log", "sino": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Pegatina Gracias", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Bolsa croissant (para hojas alga)", "desc": "Q paquetes", "bc": "", "unidad": "Unidad", "prov": "Log", "solo": true, "min": 1},
+{"id": 0, "fam": "ENVASES", "nombre": "Etiqueta Tasty Poke para sobres", "desc": "Mínimo 1/2 rollo", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true},
+{"id": 0, "fam": "ENVASES", "nombre": "Pegatina Açaí", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true}
 ];
 const EMAIL = "mataro@tastypokebar.com";
 const DIAS_ALERTA = 15;
-const LS_KEY = "invBebidasMataro_v8";
+const LS_KEY = "invBebidasMataro_v9";
 
 /* ================= ESTADO ================= */
 let S = load();
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; return s; } }
+    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{};
+        Object.keys(s.pedir).forEach(k=>{ if(s.pedir[k]!=="man") s.pedir[k]="auto"; });
+        return s; } }
   }catch(e){}
   return {
     persona:"",
     productos: SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p})),
-    counts:{}, notas:{}, lotes:{}, pedir:{}, history:[]
+    rev:0, counts:{}, notas:{}, lotes:{}, pedir:{}, history:[]
   };
 }
 function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
@@ -471,6 +485,17 @@ const grupoDe = f => f==="ENVASES" ? "ENVASES" : ["SALSAS","COCINA","NEVERA","AC
 const famShort = f => f.includes("VINOS")?"Vinos": f.includes("CERVEZAS Y")?"Cervezas": f==="ZUMOS"?"Zumos": f==="OTROS"?"Otros": f==="SALSAS"?"Salsas": f==="COCINA"?"Cocina": f==="NEVERA"?"Nevera": f==="ACAI"?"Açaí": f==="ENVASES"?"Envases":"Refrescos";
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 function cnt(k){ return S.counts[k] || {h:null,a:null}; }
+function bajoMin(p){ if(p.min==null) return false; const t=totalOf(p.key); return t!=null && t<=p.min; }
+function autoPedir(){
+  let ch=false;
+  S.productos.forEach(p=>{
+    if(p.min==null) return;
+    const t=totalOf(p.key);
+    if(t!=null && t<=p.min){ if(!S.pedir[p.key]){ S.pedir[p.key]="auto"; ch=true; } }
+    else if(S.pedir[p.key] && S.pedir[p.key]!=="man"){ delete S.pedir[p.key]; ch=true; }
+  });
+  return ch;
+}
 function totalOf(k){ const c=cnt(k); if(c.h==null && c.a==null) return null; return (c.h||0)+(c.a||0); }
 function fmtN(n){ return n==null ? "—" : (Math.round(n*100)/100).toString().replace(".",","); }
 function fmtFecha(iso){ const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y; }
@@ -515,6 +540,7 @@ $("#subchips").addEventListener("click",e=>{
 $("#buscar").addEventListener("input",e=>{ filtro=e.target.value.trim().toLowerCase(); render(); });
 
 function render(){
+  if(autoPedir()) save();
   const main=$("#lista");
   main.innerHTML="";
   S.productos.forEach(p=>{
@@ -561,7 +587,7 @@ function render(){
         </div>
       </div>`;
     const row=document.createElement("div");
-    row.className="row"; row.dataset.key=p.key;
+    row.className="row"+(bajoMin(p)?" bajo-min":""); row.dataset.key=p.key;
     row.innerHTML=`
       ${editMode?`<div class="handle" data-h>⠿</div>`:""}
       <div class="fam-bar ${famCls(p.fam)}"></div>
@@ -578,6 +604,7 @@ function render(){
       </div>
       ${counters}
       <div class="total"><div class="lbl">Total</div><div class="n ${tot==null?"zero":""}">${p.sino?(tot==null?"—":(c.h===1?"Sí":"No")):(tot==null?"—":fmtN(tot)+(p.unidad==="%"?"%":""))}</div></div>
+      <div class="minbox ${bajoMin(p)?"alerta":""}" ${editMode?'data-min style="cursor:pointer;border:1px dashed var(--accent);border-radius:10px"':""}><div class="lbl">Mín${editMode?" ✏️":""}</div><div class="n">${p.min==null?"—":fmtN(p.min)+(p.unidad==="%"?"%":"")}</div></div>
       <button class="icon-btn ${nota?"active":""}" data-nota title="Nota">📝</button>
       <button class="icon-btn ${lotes.length?"active":""}" data-lotes title="Vencimiento">📅</button>
       <button class="icon-btn ${S.pedir[p.key]?"active":""}" data-pedir title="Hay que pedir">🛒</button>
@@ -632,8 +659,22 @@ $("#lista").addEventListener("click",e=>{
     renderLotes(); $("#loteFecha").value=""; openM("mLotes"); return;
   }
   if(e.target.closest("[data-pedir]")){
-    if(S.pedir[key]) delete S.pedir[key]; else S.pedir[key]=true;
+    if(S.pedir[key]) delete S.pedir[key]; else S.pedir[key]="man";
     save(); render(); return;
+  }
+  if(editMode && e.target.closest("[data-min]")){
+    const actual = p.min==null?"":String(p.min);
+    const v = prompt("Mínimo para "+p.nombre+(p.unidad==="%"?" (en %)":"")+":\n\nDejalo vacío para quitar el mínimo.", actual);
+    if(v===null) return;
+    const t=v.trim().replace(",",".");
+    if(t===""){ delete p.min; }
+    else{
+      const n=parseFloat(t);
+      if(isNaN(n)||n<0){ toast("Número no válido"); return; }
+      p.min = p.unidad==="%" ? Math.min(100,n) : n;
+    }
+    save(); render(); syncPush(true);
+    return;
   }
   if(e.target.closest("[data-del]")){
     delKey=key; $("#delText").innerHTML=`¿Eliminar <b>${esc(p.nombre)}</b> del inventario?`;
@@ -725,7 +766,7 @@ $("#addOk").onclick=()=>{
   const n=$("#addNombre").value.trim(); if(!n){ toast("Poné un nombre"); return; }
   S.productos.push({key:"c"+Date.now(), id:0, fam:$("#addFam").value, nombre:n,
     desc:$("#addDesc").value.trim(), bc:"", unidad:"Unidad"});
-  save(); closeM("mAdd"); render(); toast("Agregado: "+n);
+  save(); closeM("mAdd"); render(); toast("Agregado: "+n); syncPush(true);
 };
 
 /* Eliminar */
@@ -733,15 +774,16 @@ let delKey=null;
 $("#delOk").onclick=()=>{
   S.productos=S.productos.filter(p=>p.key!==delKey);
   delete S.counts[delKey]; delete S.notas[delKey]; delete S.lotes[delKey]; delete S.pedir[delKey];
-  save(); closeM("mDel"); render(); toast("Producto eliminado");
+  save(); closeM("mDel"); render(); toast("Producto eliminado"); syncPush(true);
 };
 
 /* Reordenar (drag con pointer events, solo en modo edición) */
 $("#ordenBtn").onclick=()=>{
   editMode=!editMode;
-  $("#ordenBtn").textContent = editMode?"🔒 Guardar orden":"✋ Reordenar";
+  $("#ordenBtn").textContent = editMode?"🔒 Guardar cambios":"✏️ Editar";
   $("#ordenBtn").classList.toggle("btn-warn",editMode);
-  if(!editMode){ save(); toast("Orden guardado y bloqueado"); }
+  if(!editMode){ save(); toast("Cambios guardados y bloqueados"); syncPush(true); }
+  else toast("Arrastrá ⠿ para ordenar · tocá Mín para cambiarlo");
   render();
 };
 let drag=null;
@@ -811,7 +853,7 @@ $("#finOk").onclick=()=>{
   const rows=S.productos.map(p=>{
     const c=cnt(p.key);
     return {id:p.id||"", fam:p.fam, nombre:p.nombre, bc:p.bc, unidad:p.unidad,
-      prov:p.prov||"", sino:!!p.sino,
+      prov:p.prov||"", sino:!!p.sino, min:p.min==null?"":p.min,
       h:c.h, a:c.a, total:totalOf(p.key), nota:S.notas[p.key]||"",
       lotes:(S.lotes[p.key]||[]).slice().sort().map(fmtFecha).join(", "), pedir:S.pedir[p.key]?"SÍ":""};
   });
@@ -950,9 +992,9 @@ function buildXlsx(inv){
   const h1=["Id","Familia","Nombre","Ubicación","Código Barras","Unidad","Stock Teórico (Uds. Venta)","Stock Real (Uds. Venta)"];
   const s1=[h1, ...inv.rows.map(r=>[r.id===""?"":Number(r.id), r.fam, r.nombre, "", r.bc, r.unidad, "", r.total==null?"":(r.sino?(r.total===1?"Sí":"No"):r.total)])];
   // Hoja 2: detalle
-  const h2=["Nombre","Familia","Prov.","Zona 1","Zona 2","Total","Nota","Vencimientos","Pedir"];
+  const h2=["Nombre","Familia","Prov.","Zona 1","Zona 2","Total","Mínimo","Nota","Vencimientos","Pedir"];
   const s2=[["Inventario — Tasty Poke Mataró"],["Fecha", inv.fecha, "Hecho por", inv.persona],[],
-    h2, ...inv.rows.map(r=>[r.nombre, r.fam||"", r.prov||"", r.sino?(r.h==null?"":(r.h===1?"Sí":"No")):(r.h==null?"":r.h), r.a==null?"":r.a, r.sino?"":(r.total==null?"":r.total), r.nota, r.lotes, r.pedir||""])];
+    h2, ...inv.rows.map(r=>[r.nombre, r.fam||"", r.prov||"", r.sino?(r.h==null?"":(r.h===1?"Sí":"No")):(r.h==null?"":r.h), r.a==null?"":r.a, r.sino?"":(r.total==null?"":r.total), r.min===""?"":r.min, r.nota, r.lotes, r.pedir||""])];
 
   const files=[
     ["[Content_Types].xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
@@ -1004,9 +1046,48 @@ function makeZip(files){
   return out;
 }
 
+/* ================= SINCRONIZACIÓN DE PRODUCTOS ================= */
+function syncURL(){ return localStorage.getItem(SCRIPT_KEY)||SCRIPT_URL_DEFAULT; }
+function syncTag(t){ $("#syncTag").textContent=t||""; }
+
+async function syncPull(){
+  try{
+    syncTag("↻ sincronizando…");
+    const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify({action:"getProductos"})});
+    const j=await r.json();
+    if(!j.ok) throw 0;
+    if(j.productos && (j.rev||0) > (S.rev||0)){
+      S.productos=j.productos; S.rev=j.rev; save(); render();
+      toast("Lista de productos actualizada por otro dispositivo");
+    } else if(!j.productos && S.productos.length){
+      await syncPush(true);
+    }
+    syncTag("✓ sincronizado");
+    setTimeout(()=>syncTag(""),2500);
+  }catch(e){ syncTag("⚠ sin conexión"); setTimeout(()=>syncTag(""),3000); }
+}
+
+async function syncPush(silencioso){
+  S.rev=Date.now(); save();
+  try{
+    syncTag("↻ guardando…");
+    const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify({
+      action:"setProductos", rev:S.rev, productos:S.productos})});
+    const j=await r.json(); if(!j.ok) throw 0;
+    syncTag("✓ sincronizado"); setTimeout(()=>syncTag(""),2500);
+    if(!silencioso) toast("Cambio guardado para todos los dispositivos");
+  }catch(e){
+    syncTag("⚠ sin conexión");
+    if(!silencioso) toast("Sin internet: el cambio se guardó solo en esta tablet");
+    setTimeout(()=>syncTag(""),3500);
+  }
+}
+
 /* ================= INIT ================= */
 refreshPersona();
 render();
+syncPull();
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) syncPull(); });
 if(!S.persona) askPersona();
 /* Ayuda */
 const AYUDA_KEY="invMataroAyudaVista";
