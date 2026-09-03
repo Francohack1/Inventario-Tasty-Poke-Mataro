@@ -263,7 +263,7 @@
   <div class="modal">
     <h2>Finalizar inventario</h2>
     <div id="finResumen"></div>
-    <label>Hecho por</label>
+    <label>Finalizado por</label>
     <input type="text" id="finPersona" autocomplete="off">
     <div class="actions">
       <button class="btn btn-ghost" data-close>Seguir contando</button>
@@ -300,9 +300,9 @@
     <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
     <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar producto</b>Para productos nuevos. Se guardan para los próximos inventarios y aparecen en todos los dispositivos (igual que al eliminar o reordenar).</div></div>
     <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para poner los productos en el orden del local, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo de cada uno, y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
-    <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra qué faltó contar, pide confirmar, y arma el Excel. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
+    <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra quién inició el conteo y quién lo cierra, qué faltó contar, pide confirmar, y arma el Excel. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
     <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Inventarios anteriores, con opción de volver a bajar el Excel de cada uno.</div></div>
-    <div class="ayuda-item" style="border-bottom:none"><div class="ic">💾</div><div><b>Guardado automático</b>Todo se guarda al instante. Podés cerrar la app o apagar la tablet y seguir después donde quedaste.</div></div>
+    <div class="ayuda-item" style="border-bottom:none"><div class="ic">💾</div><div><b>Guardado automático y compartido</b>Todo se guarda al instante y el conteo se comparte entre dispositivos cada ~10 segundos: podés empezar en el móvil y seguir en la tablet, o contar entre dos repartiéndose las zonas. Sin internet seguís contando igual y se sube al reconectar.</div></div>
     <div class="actions"><button class="btn btn-primary" data-close>¡Entendido!</button></div>
   </div>
 </div>
@@ -466,14 +466,14 @@ let S = load();
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{};
+    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; s.ts=s.ts||{}; s.crev=s.crev||0; s.participantes=s.participantes||[];
         Object.keys(s.pedir).forEach(k=>{ if(s.pedir[k]!=="man") s.pedir[k]="auto"; });
         return s; } }
   }catch(e){}
   return {
     persona:"",
     productos: SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p})),
-    rev:0, counts:{}, notas:{}, lotes:{}, pedir:{}, history:[]
+    rev:0, crev:0, ts:{}, inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, history:[]
   };
 }
 function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
@@ -485,20 +485,23 @@ const grupoDe = f => f==="ENVASES" ? "ENVASES" : ["SALSAS","COCINA","NEVERA","AC
 const famShort = f => f.includes("VINOS")?"Vinos": f.includes("CERVEZAS Y")?"Cervezas": f==="ZUMOS"?"Zumos": f==="OTROS"?"Otros": f==="SALSAS"?"Salsas": f==="COCINA"?"Cocina": f==="NEVERA"?"Nevera": f==="ACAI"?"Açaí": f==="ENVASES"?"Envases":"Refrescos";
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 function cnt(k){ return S.counts[k] || {h:null,a:null}; }
+function touch(k){ S.ts[k]=Date.now(); pushConteo(); }
 function bajoMin(p){ if(p.min==null) return false; const t=totalOf(p.key); return t!=null && t<=p.min; }
 function autoPedir(){
   let ch=false;
   S.productos.forEach(p=>{
     if(p.min==null) return;
     const t=totalOf(p.key);
-    if(t!=null && t<=p.min){ if(!S.pedir[p.key]){ S.pedir[p.key]="auto"; ch=true; } }
-    else if(S.pedir[p.key] && S.pedir[p.key]!=="man"){ delete S.pedir[p.key]; ch=true; }
+    if(t!=null && t<=p.min){ if(!S.pedir[p.key]){ S.pedir[p.key]="auto"; S.ts[p.key]=Date.now(); ch=true; } }
+    else if(S.pedir[p.key] && S.pedir[p.key]!=="man"){ delete S.pedir[p.key]; S.ts[p.key]=Date.now(); ch=true; }
   });
   return ch;
 }
 function totalOf(k){ const c=cnt(k); if(c.h==null && c.a==null) return null; return (c.h||0)+(c.a||0); }
 function fmtN(n){ return n==null ? "—" : (Math.round(n*100)/100).toString().replace(".",","); }
 function fmtFecha(iso){ const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y; }
+function hhmm(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+function fechaHoy(){ const d=new Date(); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear(); }
 function hoyISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function diasHasta(iso){ return Math.round((new Date(iso+"T12:00")-new Date(hoyISO()+"T12:00"))/864e5); }
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.style.display="block";
@@ -640,13 +643,13 @@ $("#lista").addEventListener("click",e=>{
   if(sinoB){
     const v=Number(sinoB.dataset.sino); const c=cnt(key);
     S.counts[key]={...c, h:(c.h===v?null:v), a:null};
-    save(); render(); return;
+    touch(key); save(); render(); return;
   }
   const step=e.target.closest("[data-step]");
   if(step){
     const [f,d]=step.dataset.step.split(",");
     const c=cnt(key); let v=Math.max(0,(c[f]||0)+Number(d)); if(p.unidad==="%"){ v=Math.min(100,Math.max(0,(c[f]||0)+Number(d)*5)); }
-    S.counts[key]={...c,[f]:v}; save(); render(); return;
+    S.counts[key]={...c,[f]:v}; touch(key); save(); render(); return;
   }
   const kp=e.target.closest("[data-kp]");
   if(kp){ openKeypad(key, kp.dataset.kp, p.nombre); return; }
@@ -660,7 +663,7 @@ $("#lista").addEventListener("click",e=>{
   }
   if(e.target.closest("[data-pedir]")){
     if(S.pedir[key]) delete S.pedir[key]; else S.pedir[key]="man";
-    save(); render(); return;
+    touch(key); save(); render(); return;
   }
   if(editMode && e.target.closest("[data-min]")){
     const actual = p.min==null?"":String(p.min);
@@ -710,7 +713,7 @@ function commitKp(){
   const c=cnt(kpKey);
   const v = kpVal===""||kpVal==="." ? null : Math.max(0,parseFloat(kpVal));
   S.counts[kpKey]={...c,[kpStrip]: (v==null||isNaN(v))?null:v};
-  save();
+  touch(kpKey); save();
 }
 $("#mKeypad").addEventListener("click",e=>{
   const q=e.target.closest("[data-q]");
@@ -731,7 +734,7 @@ let notaKey=null;
 $("#notaOk").onclick=()=>{
   const t=$("#notaText").value.trim();
   if(t) S.notas[notaKey]=t; else delete S.notas[notaKey];
-  save(); closeM("mNota"); render();
+  touch(notaKey); save(); closeM("mNota"); render();
 };
 
 /* Lotes */
@@ -752,12 +755,12 @@ $("#lotesList").addEventListener("click",e=>{
   const lotes=(S.lotes[lotesKey]||[]).slice().sort();
   lotes.splice(Number(b.dataset.li),1);
   if(lotes.length) S.lotes[lotesKey]=lotes; else delete S.lotes[lotesKey];
-  save(); renderLotes(); render();
+  touch(lotesKey); save(); renderLotes(); render();
 });
 $("#loteAdd").onclick=()=>{
   const f=$("#loteFecha").value; if(!f){ toast("Elegí una fecha"); return; }
   S.lotes[lotesKey]=[...(S.lotes[lotesKey]||[]),f];
-  $("#loteFecha").value=""; save(); renderLotes(); render();
+  $("#loteFecha").value=""; touch(lotesKey); save(); renderLotes(); render();
 };
 
 /* Agregar */
@@ -824,7 +827,10 @@ $("#personaBtn").onclick=askPersona;
 $("#personaOk").onclick=()=>{
   const n=$("#personaInput").value.trim();
   if(!n){ toast("Ingresá tu nombre"); return; }
-  S.persona=n; save(); closeM("mPersona"); refreshPersona();
+  S.persona=n;
+  if(!S.inicio) S.inicio={quien:n, hora:hhmm(), fecha:fechaHoy()};
+  if(!S.participantes.includes(n)) S.participantes.push(n);
+  save(); closeM("mPersona"); refreshPersona(); pushConteo(true);
 };
 function refreshPersona(){ $("#personaBtn").textContent="👤 "+(S.persona||"—"); }
 
@@ -833,6 +839,7 @@ $("#finBtn").onclick=()=>{
   const sin=S.productos.filter(p=>totalOf(p.key)==null);
   const contados=S.productos.length-sin.length;
   $("#finResumen").innerHTML=`
+    ${S.inicio?`<p class="muted">Iniciado por <b>${esc(S.inicio.quien)}</b> a las ${S.inicio.hora}${S.participantes.length>1?` · Participaron: ${S.participantes.map(esc).join(", ")}`:""}</p>`:""}
     <p style="font-size:16px">Productos con conteo: <b>${contados}</b> de ${S.productos.length}.</p>
     ${sin.length?`<p class="muted">Sin contar (irán con stock vacío):</p>
       <div class="sincontar">${sin.map(p=>`<span>${esc(p.nombre)}</span>`).join("")}</div>`:""}
@@ -857,7 +864,10 @@ $("#finOk").onclick=()=>{
       h:c.h, a:c.a, total:totalOf(p.key), nota:S.notas[p.key]||"",
       lotes:(S.lotes[p.key]||[]).slice().sort().map(fmtFecha).join(", "), pedir:S.pedir[p.key]?"SÍ":""};
   });
-  const inv={fecha:fstr, iso:fecha.toISOString(), persona, rows};
+  if(!S.participantes.includes(persona)) S.participantes.push(persona);
+  const inv={fecha:fstr, iso:fecha.toISOString(), persona,
+    inicio:S.inicio||{quien:persona,hora:hhmm(),fecha:fstr},
+    finHora:hhmm(), participantes:S.participantes.slice(), rows};
   S.history.unshift(inv); if(S.history.length>30) S.history.length=30;
   save();
   lastFname="Inventario_Tasty_Mataro_"+fstr.replace(/\//g,"-")+".xlsx";
@@ -886,7 +896,7 @@ $("#doneAuto").onclick=async()=>{
     const r=await fetch(url,{method:"POST",body:JSON.stringify({
       filename:lastFname, b64,
       subject:"Inventario Mataró — "+h.fecha+" ("+h.persona+")",
-      body:"Inventario Tasty Poke Mataró.\nFecha: "+h.fecha+"\nHecho por: "+h.persona+"\n\nEnviado automáticamente desde la app de inventario."})});
+      body:"Inventario Tasty Poke Mataró.\nFecha: "+h.fecha+"\nIniciado por: "+((h.inicio&&h.inicio.quien)||h.persona)+" ("+((h.inicio&&h.inicio.hora)||"")+")\nFinalizado por: "+h.persona+" ("+(h.finHora||"")+")\nParticipantes: "+((h.participantes||[h.persona]).join(", "))+"\n\nEnviado automáticamente desde la app de inventario."})});
     const j=await r.json();
     if(!j.ok) throw new Error(j.error||"error");
     btn.textContent="✅ Enviado a Mataró";
@@ -910,7 +920,7 @@ $("#doneMail").onclick=()=>{
   location.href="mailto:"+EMAIL+"?subject="+s+"&body="+b;
 };
 $("#doneNew").onclick=()=>{
-  S.counts={}; S.notas={}; S.pedir={}; S.persona=""; save(); refreshPersona();
+  S.counts={}; S.notas={}; S.lotes={}; S.pedir={}; S.ts={}; S.persona=""; S.inicio=null; S.participantes=[]; save(); refreshPersona(); pushConteo(true);
   closeM("mDone"); render(); toast("Conteos limpiados. ¡Listo para el próximo!");
   askPersona();
 };
@@ -920,8 +930,8 @@ function renderHist(){
   $("#histList").innerHTML = S.history.length
     ? S.history.map((h,i)=>`
       <div class="hist-item">
-        <div class="info"><b>${h.fecha}</b> — ${esc(h.persona)}<br>
-        <span class="muted">${h.rows.filter(r=>r.total!=null).length} productos contados</span></div>
+        <div class="info"><b>${h.fecha}</b> — ${esc((h.participantes||[h.persona]).join(", "))}<br>
+        <span class="muted">${h.inicio?`inició ${esc(h.inicio.quien)} ${h.inicio.hora} · cerró ${esc(h.persona)} ${h.finHora||""} · `:""}${h.rows.filter(r=>r.total!=null).length} productos contados</span></div>
         <button class="btn btn-ghost" data-hm="${i}" title="Reenviar por correo">✉️</button>
         <button class="btn btn-ghost" data-hx="${i}">⬇️ Excel</button>
         <button class="icon-btn" data-hd="${i}" title="Borrar" style="background:#fdecec;color:var(--danger)">🗑</button>
@@ -993,7 +1003,11 @@ function buildXlsx(inv){
   const s1=[h1, ...inv.rows.map(r=>[r.id===""?"":Number(r.id), r.fam, r.nombre, "", r.bc, r.unidad, "", r.total==null?"":(r.sino?(r.total===1?"Sí":"No"):r.total)])];
   // Hoja 2: detalle
   const h2=["Nombre","Familia","Prov.","Zona 1","Zona 2","Total","Mínimo","Nota","Vencimientos","Pedir"];
-  const s2=[["Inventario — Tasty Poke Mataró"],["Fecha", inv.fecha, "Hecho por", inv.persona],[],
+  const s2=[["Inventario — Tasty Poke Mataró"],
+    ["Fecha", inv.fecha],
+    ["Iniciado por", (inv.inicio&&inv.inicio.quien)||inv.persona, "Hora inicio", (inv.inicio&&inv.inicio.hora)||""],
+    ["Finalizado por", inv.persona, "Hora fin", inv.finHora||""],
+    ["Participantes", (inv.participantes||[inv.persona]).join(", ")],[],
     h2, ...inv.rows.map(r=>[r.nombre, r.fam||"", r.prov||"", r.sino?(r.h==null?"":(r.h===1?"Sí":"No")):(r.h==null?"":r.h), r.a==null?"":r.a, r.sino?"":(r.total==null?"":r.total), r.min===""?"":r.min, r.nota, r.lotes, r.pedir||""])];
 
   const files=[
@@ -1083,11 +1097,53 @@ async function syncPush(silencioso){
   }
 }
 
+/* ========== SINCRONIZACIÓN DEL CONTEO EN CURSO ========== */
+let pushT=null, syncing=false;
+function pushConteo(inmediato){
+  clearTimeout(pushT);
+  pushT=setTimeout(async()=>{
+    if(syncing) return;
+    try{
+      syncing=true; syncTag("↻ guardando conteo…");
+      const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify({action:"setConteo",
+        data:{persona:S.persona, inicio:S.inicio, participantes:S.participantes, counts:S.counts, notas:S.notas, lotes:S.lotes, pedir:S.pedir, ts:S.ts}})});
+      const j=await r.json(); if(!j.ok) throw 0;
+      syncTag("✓ conteo compartido"); setTimeout(()=>syncTag(""),2000);
+    }catch(e){ syncTag("⚠ sin conexión"); setTimeout(()=>syncTag(""),3000); }
+    finally{ syncing=false; }
+  }, inmediato?0:1500);
+}
+
+async function pullConteo(){
+  if(syncing) return;
+  try{
+    syncing=true;
+    const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify({action:"getConteo"})});
+    const j=await r.json(); if(!j.ok || !j.data) return;
+    const R=j.data, rts=R.ts||{}; let cambios=0;
+    Object.keys(rts).forEach(k=>{
+      if(rts[k] > (S.ts[k]||0)){
+        if(R.counts && R.counts[k]!==undefined) S.counts[k]=R.counts[k]; else delete S.counts[k];
+        if(R.notas && R.notas[k]!==undefined) S.notas[k]=R.notas[k]; else delete S.notas[k];
+        if(R.lotes && R.lotes[k]!==undefined) S.lotes[k]=R.lotes[k]; else delete S.lotes[k];
+        if(R.pedir && R.pedir[k]!==undefined) S.pedir[k]=R.pedir[k]; else delete S.pedir[k];
+        S.ts[k]=rts[k]; cambios++;
+      }
+    });
+    if(!S.persona && R.persona) { S.persona=R.persona; refreshPersona(); }
+    if(R.inicio && (!S.inicio || R.inicio.hora < S.inicio.hora)) { S.inicio=R.inicio; cambios++; }
+    (R.participantes||[]).forEach(n=>{ if(!S.participantes.includes(n)){ S.participantes.push(n); cambios++; } });
+    if(cambios){ save(); render(); syncTag("↓ "+cambios+" actualizados"); setTimeout(()=>syncTag(""),2500); }
+  }catch(e){}
+  finally{ syncing=false; }
+}
+
 /* ================= INIT ================= */
 refreshPersona();
 render();
-syncPull();
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden) syncPull(); });
+syncPull(); pullConteo();
+setInterval(()=>{ if(!document.hidden) pullConteo(); }, 10000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ syncPull(); pullConteo(); } });
 if(!S.persona) askPersona();
 /* Ayuda */
 const AYUDA_KEY="invMataroAyudaVista";
