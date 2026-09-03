@@ -1067,8 +1067,7 @@ function syncTag(t){ $("#syncTag").textContent=t||""; }
 async function syncPull(){
   try{
     syncTag("↻ sincronizando…");
-    const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify({action:"getProductos"})});
-    const j=await r.json();
+    const j=await api({action:"getProductos"});
     if(!j.ok) throw 0;
     if(j.productos && (j.rev||0) > (S.rev||0)){
       S.productos=j.productos; S.rev=j.rev; save(); render();
@@ -1085,9 +1084,8 @@ async function syncPush(silencioso){
   S.rev=Date.now(); save();
   try{
     syncTag("↻ guardando…");
-    const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify({
-      action:"setProductos", rev:S.rev, productos:S.productos})});
-    const j=await r.json(); if(!j.ok) throw 0;
+    const j=await api({action:"setProductos", rev:S.rev, productos:S.productos});
+    if(!j.ok) throw 0;
     syncTag("✓ sincronizado"); setTimeout(()=>syncTag(""),2500);
     if(!silencioso) toast("Cambio guardado para todos los dispositivos");
   }catch(e){
@@ -1098,28 +1096,36 @@ async function syncPush(silencioso){
 }
 
 /* ========== SINCRONIZACIÓN DEL CONTEO EN CURSO ========== */
-let pushT=null, syncing=false;
+let pushT=null, pushing=false, pulling=false;
+async function api(body, ms){
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(), ms||12000);
+  try{
+    const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify(body),signal:ctl.signal});
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
 function pushConteo(inmediato){
   clearTimeout(pushT);
   pushT=setTimeout(async()=>{
-    if(syncing) return;
+    if(pushing){ pushConteo(); return; }
+    pushing=true;
     try{
-      syncing=true; syncTag("↻ guardando conteo…");
-      const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify({action:"setConteo",
-        data:{persona:S.persona, inicio:S.inicio, participantes:S.participantes, counts:S.counts, notas:S.notas, lotes:S.lotes, pedir:S.pedir, ts:S.ts}})});
-      const j=await r.json(); if(!j.ok) throw 0;
+      syncTag("↻ guardando conteo…");
+      const j=await api({action:"setConteo",
+        data:{persona:S.persona, inicio:S.inicio, participantes:S.participantes, counts:S.counts, notas:S.notas, lotes:S.lotes, pedir:S.pedir, ts:S.ts}});
+      if(!j.ok) throw 0;
       syncTag("✓ conteo compartido"); setTimeout(()=>syncTag(""),2000);
     }catch(e){ syncTag("⚠ sin conexión"); setTimeout(()=>syncTag(""),3000); }
-    finally{ syncing=false; }
+    finally{ pushing=false; }
   }, inmediato?0:1500);
 }
 
 async function pullConteo(){
-  if(syncing) return;
+  if(pulling) return;
   try{
-    syncing=true;
-    const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify({action:"getConteo"})});
-    const j=await r.json(); if(!j.ok || !j.data) return;
+    pulling=true;
+    const j=await api({action:"getConteo"}); if(!j.ok || !j.data) return;
     const R=j.data, rts=R.ts||{}; let cambios=0;
     Object.keys(rts).forEach(k=>{
       if(rts[k] > (S.ts[k]||0)){
@@ -1135,7 +1141,7 @@ async function pullConteo(){
     (R.participantes||[]).forEach(n=>{ if(!S.participantes.includes(n)){ S.participantes.push(n); cambios++; } });
     if(cambios){ save(); render(); syncTag("↓ "+cambios+" actualizados"); setTimeout(()=>syncTag(""),2500); }
   }catch(e){}
-  finally{ syncing=false; }
+  finally{ pulling=false; }
 }
 
 /* ================= INIT ================= */
