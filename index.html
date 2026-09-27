@@ -44,6 +44,15 @@
     font-size:13.5px; cursor:pointer; color:var(--muted);}
   .subchip.on{background:var(--accent); color:#fff; border-color:var(--accent);}
 
+  .prog{position:sticky; top:0; z-index:15; background:var(--card); border-bottom:1px solid var(--line);
+    padding:8px 14px 10px;}
+  .prog .txt{display:flex; justify-content:space-between; align-items:baseline; font-size:13px;
+    color:var(--muted); margin-bottom:5px;}
+  .prog .txt b{font-size:15px; color:var(--ink);}
+  .prog .bar{height:10px; background:#e9eef2; border-radius:999px; overflow:hidden;}
+  .prog .fill{height:100%; width:0; background:var(--accent); border-radius:999px; transition:width .35s ease;}
+  .prog.full .fill{background:#1e8449;}
+  .prog.full .txt b{color:#1e8449;}
   #alertVenc{margin:0 14px 6px; background:#fdf3e3; border:1px solid #f0d9ac; color:#7a5200;
     border-radius:12px; padding:10px 14px; font-size:14px; display:none;}
 
@@ -154,6 +163,7 @@
 </div>
 
 <div class="subchips" id="subchips" style="display:none"></div>
+<div class="prog" id="prog"><div class="txt"><span><b id="progN">0</b> <span id="progDe">de 0 productos contados</span></span><span id="progPct">0%</span></div><div class="bar"><div class="fill" id="progFill"></div></div></div>
 <div id="alertVenc"></div>
 <main id="lista"></main>
 
@@ -298,6 +308,7 @@
     <div class="ayuda-item"><div class="ic">📝</div><div><b>Nota</b>Comentario opcional del producto (ej. "llegó caja rota"). Sale en el Excel.</div></div>
     <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Cuando falten 15 días o menos, la app avisa arriba al abrirla.</div></div>
     <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>Tocá 🛒 si hay que reponer. Además, cada producto tiene un <b style="display:inline">mínimo</b>: si el total queda en ese número o por debajo, la fila se pone roja y se marca 🛒 sola; si después subís la cantidad por encima del mínimo, se desmarca sola. Todo sale en el Excel.</div></div>
+    <div class="ayuda-item"><div class="ic">📊</div><div><b>Barra de progreso</b>Arriba se ve cuántos productos llevan contados sobre el total. Se completa sola a medida que cargás cantidades.</div></div>
     <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
     <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar producto</b>Para productos nuevos. Se guardan para los próximos inventarios y aparecen en todos los dispositivos (igual que al eliminar o reordenar).</div></div>
     <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para poner los productos en el orden del local, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo de cada uno, y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
@@ -643,6 +654,25 @@ function render(){
     main.appendChild(row);
   });
   renderAlerta();
+  renderProgreso();
+}
+
+function renderProgreso(){
+  const tot=S.productos.length;
+  const hechos=S.productos.filter(p=>totalOf(p.key)!=null).length;
+  const pct=tot? Math.round(hechos*100/tot) : 0;
+  $("#progN").textContent=hechos;
+  $("#progFill").style.width=pct+"%";
+  $("#progPct").textContent=pct+"%";
+  $("#prog").classList.toggle("full", tot>0 && hechos===tot);
+  let extra="";
+  if(famFiltro||subFiltro){
+    const vis=[...document.querySelectorAll("#lista .row")].map(r=>r.dataset.key);
+    const vp=S.productos.filter(p=>vis.includes(p.key));
+    const vh=vp.filter(p=>totalOf(p.key)!=null).length;
+    if(vp.length) extra=" · en esta vista "+vh+"/"+vp.length;
+  }
+  $("#progDe").textContent = "de "+tot+" productos contados"+(hechos===tot&&tot?" ✓":"")+extra;
 }
 
 function renderAlerta(){
