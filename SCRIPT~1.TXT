@@ -1,0 +1,75 @@
+// Script para Google Apps Script — Inventario Tasty Poke Mataró
+// Cuenta: tastypokermataro@gmail.com
+// Hace 3 cosas:
+//   1) Envía el Excel del inventario a mataro@tastypokebar.com
+//   2) Comparte la lista de productos entre todos los dispositivos
+//   3) Comparte el conteo en curso (empezar en el móvil y seguir en la tablet)
+
+const DESTINO = "mataro@tastypokebar.com";
+const F_PRODUCTOS = "inventario_productos.json";
+const F_CONTEO = "inventario_conteo.json";
+
+function doPost(e) {
+  try {
+    const d = JSON.parse(e.postData.contents);
+
+    // --- Lista de productos ---
+    if (d.action === "getProductos") {
+      const data = leer(F_PRODUCTOS);
+      if (!data) return json({ ok: true, rev: 0, productos: null });
+      return json({ ok: true, rev: data.rev || 0, productos: data.productos });
+    }
+    if (d.action === "setProductos") {
+      escribir(F_PRODUCTOS, { rev: d.rev, productos: d.productos });
+      return json({ ok: true, rev: d.rev });
+    }
+
+    // --- Conteo en curso ---
+    if (d.action === "getConteo") {
+      return json({ ok: true, data: leer(F_CONTEO) });
+    }
+    if (d.action === "setConteo") {
+      escribir(F_CONTEO, d.data);
+      return json({ ok: true });
+    }
+
+    // --- Envío del inventario por correo ---
+    const bytes = Utilities.base64Decode(d.b64);
+    const blob = Utilities.newBlob(
+      bytes,
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      d.filename
+    );
+    GmailApp.sendEmail(DESTINO, d.subject, d.body, {
+      attachments: [blob],
+      name: "Inventario Tasty Poke"
+    });
+    return json({ ok: true });
+
+  } catch (err) {
+    return json({ ok: false, error: String(err) });
+  }
+}
+
+function archivo(nombre) {
+  const it = DriveApp.getFilesByName(nombre);
+  return it.hasNext() ? it.next() : null;
+}
+
+function leer(nombre) {
+  const f = archivo(nombre);
+  if (!f) return null;
+  try { return JSON.parse(f.getBlob().getDataAsString()); } catch (e) { return null; }
+}
+
+function escribir(nombre, obj) {
+  const contenido = JSON.stringify(obj);
+  const f = archivo(nombre);
+  if (f) f.setContent(contenido);
+  else DriveApp.createFile(nombre, contenido, MimeType.PLAIN_TEXT);
+}
+
+function json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}

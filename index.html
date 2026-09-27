@@ -468,6 +468,7 @@ function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
     if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; s.ts=s.ts||{}; s.crev=s.crev||0; s.participantes=s.participantes||[];
+        if(!mismoSeed(s.productos)){ s.productos=migrarSeed(s.productos); s.rev=Date.now(); }
         Object.keys(s.pedir).forEach(k=>{ if(s.pedir[k]!=="man") s.pedir[k]="auto"; });
         return s; } }
   }catch(e){}
@@ -476,6 +477,29 @@ function load(){
     productos: SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p})),
     rev:0, crev:0, ts:{}, inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, history:[]
   };
+}
+const SEED_KEYS = new Set(SEED.map((p,i)=>"p"+(p.id||("x"+i))));
+const esCustom = p => String(p.key).startsWith("c");
+function mismoSeed(lista){
+  if(!Array.isArray(lista)) return false;
+  const ks = lista.filter(p=>!esCustom(p)).map(p=>p.key);
+  if(ks.length !== SEED_KEYS.size) return false;
+  return ks.every(k=>SEED_KEYS.has(k));
+}
+function migrarSeed(lista){
+  const prev={}; lista.forEach(p=>prev[p.key]=p);
+  const base=SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p}));
+  base.forEach(p=>{ const o=prev[p.key]; if(o && o.minUser){ p.min=o.min; p.minUser=true; } });
+  const custom=lista.filter(esCustom);
+  const orden=lista.map(p=>p.key);
+  const todos=base.concat(custom);
+  const conocidos=todos.filter(p=>orden.indexOf(p.key)>=0)
+                       .sort((a,b)=>orden.indexOf(a.key)-orden.indexOf(b.key));
+  todos.filter(p=>orden.indexOf(p.key)<0).forEach(p=>{
+    let i=-1; conocidos.forEach((q,j)=>{ if(q.fam===p.fam) i=j; });
+    if(i>=0) conocidos.splice(i+1,0,p); else conocidos.push(p);
+  });
+  return conocidos;
 }
 function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
 
@@ -671,11 +695,11 @@ $("#lista").addEventListener("click",e=>{
     const v = prompt("Mínimo para "+p.nombre+(p.unidad==="%"?" (en %)":"")+":\n\nDejalo vacío para quitar el mínimo.", actual);
     if(v===null) return;
     const t=v.trim().replace(",",".");
-    if(t===""){ delete p.min; }
+    if(t===""){ delete p.min; p.minUser=true; }
     else{
       const n=parseFloat(t);
       if(isNaN(n)||n<0){ toast("Número no válido"); return; }
-      p.min = p.unidad==="%" ? Math.min(100,n) : n;
+      p.min = p.unidad==="%" ? Math.min(100,n) : n; p.minUser=true;
     }
     save(); render(); syncPush(true);
     return;
@@ -1070,7 +1094,14 @@ async function syncPull(){
     syncTag("↻ sincronizando…");
     const j=await api({action:"getProductos"});
     if(!j.ok) throw 0;
-    if(j.productos && (j.rev||0) > (S.rev||0)){
+    if(j.productos && !mismoSeed(j.productos)){
+      const locK=new Set(S.productos.map(p=>p.key));
+      const extra=j.productos.filter(p=>esCustom(p) && !locK.has(p.key));
+      S.productos=migrarSeed(S.productos.concat(extra));
+      save(); render();
+      await syncPush(true);
+      toast("Lista de productos actualizada"+(extra.length?" (se conservaron "+extra.length+" agregados)":""));
+    } else if(j.productos && (j.rev||0) > (S.rev||0)){
       S.productos=j.productos; S.rev=j.rev; save(); render();
       toast("Lista de productos actualizada por otro dispositivo");
     } else if(!j.productos && S.productos.length){
