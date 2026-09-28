@@ -313,7 +313,7 @@
     <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar producto</b>Para productos nuevos. Se guardan para los próximos inventarios y aparecen en todos los dispositivos (igual que al eliminar o reordenar).</div></div>
     <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para poner los productos en el orden del local, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo de cada uno, y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
     <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra quién inició el conteo y quién lo cierra, qué faltó contar, pide confirmar, y arma el Excel. Al confirmar, el conteo se cierra en TODOS los dispositivos y el inventario queda en el Historial de cada uno. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
-    <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Inventarios anteriores, con opción de volver a bajar el Excel o reenviarlo por correo.</div></div>
+    <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Los últimos 12 inventarios, con opción de volver a bajar el Excel o reenviarlo por correo. Se guardan en la nube, así que se ven desde cualquier dispositivo y no se pierden aunque se borren los datos del navegador.</div></div>
     <div class="ayuda-item"><div class="ic">🔄</div><div><b>Nuevo</b>Limpia el conteo para empezar de cero, en todos los dispositivos. Usalo cuando el inventario anterior ya se envió. No borra el Historial.</div></div>
     <div class="ayuda-item" style="border-bottom:none"><div class="ic">💾</div><div><b>Guardado automático y compartido</b>Todo se guarda al instante y el conteo se comparte entre dispositivos cada ~10 segundos: podés empezar en el móvil y seguir en la tablet, o contar entre dos repartiéndose las zonas. Sin internet seguís contando igual y se sube al reconectar.</div></div>
     <div class="actions"><button class="btn btn-primary" data-close>¡Entendido!</button></div>
@@ -930,6 +930,7 @@ $("#finOk").onclick=()=>{
   lastFname="Inventario_Tasty_Mataro_"+fstr.replace(/\//g,"-")+".xlsx";
   lastBlob=buildXlsx(inv);
   cerrarParaTodos(inv);
+  pushHistorial();
   closeM("mFin"); openM("mDone");
 };
 $("#doneDownload").onclick=()=>downloadBlob(lastBlob,lastFname);
@@ -1043,7 +1044,7 @@ $("#histList").addEventListener("click",e=>{
   if(d){
     const i=Number(d.dataset.hd), h=S.history[i];
     if(confirm("⚠️ ¿Borrar el inventario del "+h.fecha+" ("+h.persona+") del historial?\n\nNo se puede deshacer.")){
-      S.history.splice(i,1); save(); renderHist(); toast("Inventario borrado del historial");
+      S.history.splice(i,1); save(); renderHist(); pushHistorial(); toast("Inventario borrado del historial");
     }
     return;
   }
@@ -1221,6 +1222,7 @@ async function pullConteo(){
       S.counts={}; S.notas={}; S.lotes={}; S.pedir={}; S.ts={}; S.persona=""; S.inicio=null; S.participantes=[];
       save(); refreshPersona(); render();
       toast("✅ Inventario finalizado"+(inv?" por "+inv.persona:"")+" · listo para uno nuevo");
+      pullHistorial();
       return;
     }
     const rts=R.ts||{}; let cambios=0;
@@ -1241,12 +1243,38 @@ async function pullConteo(){
   finally{ pulling=false; }
 }
 
+/* ========== HISTORIAL COMPARTIDO ========== */
+const MAX_HIST = 12;
+function fusionarHist(a,b){
+  const m={};
+  [...(a||[]),...(b||[])].forEach(h=>{ if(h && h.iso) m[h.iso]=h; });
+  return Object.values(m).sort((x,y)=> y.iso.localeCompare(x.iso)).slice(0,MAX_HIST);
+}
+async function pullHistorial(){
+  try{
+    const j=await api({action:"getHistorial"});
+    if(!j || !j.ok || !j.historial) return;
+    const antes=S.history.length;
+    const fus=fusionarHist(S.history, j.historial);
+    if(JSON.stringify(fus)!==JSON.stringify(S.history)){
+      S.history=fus; save();
+      if(fus.length>antes) toast("Historial actualizado ("+fus.length+" inventarios)");
+    }
+  }catch(e){}
+}
+async function pushHistorial(){
+  try{
+    S.history=S.history.slice(0,MAX_HIST); save();
+    await api({action:"setHistorial", historial:S.history}, 20000);
+  }catch(e){}
+}
+
 /* ================= INIT ================= */
 refreshPersona();
 render();
-syncPull(); pullConteo();
+syncPull(); pullConteo(); pullHistorial();
 setInterval(()=>{ if(!document.hidden) pullConteo(); }, 10000);
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ syncPull(); pullConteo(); } });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ syncPull(); pullConteo(); pullHistorial(); } });
 if(!S.persona) askPersona();
 /* Ayuda */
 const AYUDA_KEY="invMataroAyudaVista";
