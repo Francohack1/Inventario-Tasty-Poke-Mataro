@@ -61,6 +61,13 @@
     display:flex; align-items:center; gap:8px; padding:8px 10px; position:relative;}
   .row.uncounted-flash{outline:2px solid var(--warn);}
   .row.bajo-min{background:#fdecec; border-color:#f5b7b1;}
+  .row.por-vencer{background:#fef9e7; border-color:#f7dc6f;}
+  .row.vencido{background:#fadbd8; border-color:#e6b0aa;}
+  .badge.venc-warn{background:#fdf3e3; color:#9a6b00; font-weight:600;}
+  .badge.err{background:#fdecec; color:var(--danger); font-weight:700;}
+  .lotestado{border-radius:10px; padding:10px 12px; margin:10px 0; font-size:15px;}
+  .lotestado.ok{background:#e8f6f1; color:#0a5c4c;}
+  .lotestado.mal{background:#fdecec; color:var(--danger); font-weight:600;}
   .fam-bar{width:5px; align-self:stretch; border-radius:4px; flex:none;}
   .fam-VINOS{background:var(--vinos);} .fam-CERV{background:var(--cervezas);}
   .fam-REFR{background:var(--refrescos);} .fam-ZUMO{background:var(--zumos);} .fam-OTRO{background:#7f8c8d;}
@@ -225,10 +232,15 @@
   <div class="modal">
     <h2 id="lotesTitle">Vencimientos de lote</h2>
     <p class="muted" id="loteDias" style="margin:0 0 10px"></p>
+    <div id="loteEstado" class="lotestado" style="display:none"></div>
     <div id="prevBox"></div>
     <div id="lotesList"></div>
     <label id="loteLbl">Agregar fecha de vencimiento</label>
-    <input type="date" id="loteFecha">
+    <div style="display:flex; gap:10px">
+      <input type="date" id="loteFecha" style="flex:2">
+      <input type="number" id="loteCant" placeholder="Unid." min="0" step="1" style="flex:1">
+    </div>
+    <input type="text" id="loteNum" placeholder="Nº o código de lote (opcional)" autocomplete="off" style="margin-top:8px">
     <div class="actions">
       <button class="btn btn-ghost" data-close>Cerrar</button>
       <button class="btn btn-primary" id="loteAdd">＋ Agregar lote</button>
@@ -314,7 +326,7 @@
     <h2>¿Cómo se usa?</h2>
     <div class="ayuda-item"><div class="ic">🧊📦</div><div><b>Heladera y Almacén</b>Contá cada zona por separado (según el producto: Heladera/Almacén, Congelado/Descongelado, Cocina/Barra…). Con − y ＋ vas de a uno, o tocá el número para el teclado grande. Algunos productos tienen un solo contador o botones Sí/No de "suficiente". El Total se suma solo.</div></div>
     <div class="ayuda-item"><div class="ic">📝</div><div><b>Nota</b>Comentario opcional del producto (ej. "llegó caja rota"). Sale en el Excel.</div></div>
-    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Si el producto tenía fecha en el inventario anterior, aparece precargada con el botón 📅 en ámbar: tocalo y elegí "Sigue igual", "Ya no está" o cargá la fecha nueva. Para corregir una fecha ya cargada, tocá ✎ sobre ella, elegí la nueva y guardá; con ✕ se borra. Al finalizar, la app avisa si quedó alguna sin confirmar. Cuando el vencimiento esté cerca, aparece un aviso arriba y el producto se marca en rojo — <a href="#" id="cfgDias2">⚙️ cambiar los días de aviso</a> (ahora: <b style="display:inline" id="diasAct"></b>).</div></div>
+    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote, cuántas unidades tiene y, si querés, su número o código de lote. Las unidades se reparten solas entre los lotes que no tocaste: si contaste 10 y ponés 6 en una fecha, el otro lote pasa a 4. Si la suma no coincide con lo contado, aparece un aviso en rojo y la app te avisa al finalizar. La fila se pone <b style="display:inline">amarilla</b> cuando el lote más próximo entra en los días de aviso y <b style="display:inline">roja</b> si ya venció. Si el producto tenía fecha en el inventario anterior, aparece precargada con el botón 📅 en ámbar: tocalo y elegí "Sigue igual", "Ya no está" o cargá la fecha nueva. Para corregir una fecha ya cargada, tocá ✎ sobre ella, elegí la nueva y guardá; con ✕ se borra. Al finalizar, la app avisa si quedó alguna sin confirmar. Cuando el vencimiento esté cerca, aparece un aviso arriba y el producto se marca en rojo — <a href="#" id="cfgDias2">⚙️ cambiar los días de aviso</a> (ahora: <b style="display:inline" id="diasAct"></b>).</div></div>
     <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>Tocá 🛒 si hay que reponer. Además, cada producto tiene un <b style="display:inline">mínimo</b>: si el total queda en ese número o por debajo, la fila se pone roja y se marca 🛒 sola; si después subís la cantidad por encima del mínimo, se desmarca sola. Todo sale en el Excel.</div></div>
     <div class="ayuda-item"><div class="ic">📊</div><div><b>Barra de progreso</b>Arriba se ve cuántos productos llevan contados sobre el total. Se completa sola a medida que cargás cantidades.</div></div>
     <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
@@ -484,6 +496,35 @@ const EMAIL = "mataro@tastypokebar.com";
 const DIAS_ALERTA_DEF = 10;
 function diasAlerta(){ return (S && S.diasAlerta) || DIAS_ALERTA_DEF; }
 function diasDe(p){ return (p && p.diasAlerta) || diasAlerta(); }
+function normLote(x){ return (typeof x==="string") ? {f:x,q:null,n:""} : {f:x.f, q:(x.q==null?null:x.q), m:!!x.m, n:(x.n||"")}; }
+function lotesDe(k){ return (S.lotes[k]||[]).map(normLote).sort((a,b)=>a.f.localeCompare(b.f)); }
+function fmtLote(l){ return fmtFecha(l.f)+(l.q!=null?" · "+fmtN(l.q)+" u":"")+(l.n?" · lote "+l.n:""); }
+function sumaLotes(k){ return lotesDe(k).reduce((a,l)=>a+(l.q||0),0); }
+function repartirLotes(k){
+  const tot=totalOf(k); const ls=lotesDe(k);
+  if(!ls.length) return;
+  if(tot==null){ S.lotes[k]=ls; return; }
+  const auto=ls.filter(l=>!l.m);
+  const usado=ls.filter(l=>l.m).reduce((a,l)=>a+(l.q||0),0);
+  if(auto.length){
+    let resto=Math.max(0, tot-usado);
+    const base=Math.floor(resto/auto.length);
+    auto.forEach((l,i)=>{ l.q = (i===0) ? resto-base*(auto.length-1) : base; });
+  }
+  S.lotes[k]=ls;
+}
+function lotesDesbalance(p){
+  const t=totalOf(p.key), ls=lotesDe(p.key);
+  if(t==null || !ls.length) return 0;
+  return Math.round((sumaLotes(p.key)-t)*100)/100;
+}
+function estadoVenc(p){
+  const ls=lotesDe(p.key); if(!ls.length) return "";
+  const d=diasHasta(ls[0].f);
+  if(d<0) return "vencido";
+  if(d<=diasDe(p)) return "por-vencer";
+  return "";
+}
 const LS_KEY = "invBebidasMataro_v10";
 
 /* ================= ESTADO ================= */
@@ -559,7 +600,12 @@ function calcPrev(){
     let k=r.key; 
     if(!k){ const p=S.productos.find(x=>x.nombre===r.nombre); k=p&&p.key; }
     if(!k) return;
-    const fs=String(r.lotes).split(",").map(s=>parseFecha(s)).filter(Boolean);
+    const fs=String(r.lotes).split(",").map(s=>{
+      const m=s.trim().match(/^(\d{2}\/\d{2}\/\d{4})(?:\s*\(([\d.,]+)\))?(?:\s*#(.+))?\$/);
+      if(!m) return null;
+      const f=parseFecha(m[1]); if(!f) return null;
+      return {f, q: m[2]!=null? parseFloat(m[2].replace(",",".")) : null, n: (m[3]||"").trim()};
+    }).filter(Boolean);
     if(fs.length) PREV[k]=fs;
   });
 }
@@ -620,8 +666,8 @@ function render(){
     if(filtro && !p.nombre.toLowerCase().includes(filtro)) return;
     const c=cnt(p.key), tot=totalOf(p.key);
     const nota=S.notas[p.key]||"";
-    const lotes=S.lotes[p.key]||[];
-    const proxVenc = lotes.map(l=>diasHasta(l)).sort((a,b)=>a-b)[0];
+    const lotes=lotesDe(p.key);
+
     const L = p.labels || ["🧊 Heladera","📦 Almacén"];
     const counters = p.sino ? `
       <div class="counter">
@@ -656,7 +702,8 @@ function render(){
         </div>
       </div>`;
     const row=document.createElement("div");
-    row.className="row"+(bajoMin(p)?" bajo-min":""); row.dataset.key=p.key;
+    const ev=estadoVenc(p);
+    row.className="row"+(ev?" "+ev:(bajoMin(p)?" bajo-min":"")); row.dataset.key=p.key;
     row.innerHTML=`
       ${editMode?`<div class="handle" data-h>⠿</div>`:""}
       <div class="fam-bar ${famCls(p.fam)}"></div>
@@ -667,8 +714,9 @@ function render(){
           <span class="badge">${famShort(p.fam)}</span>
           ${p.prov?`<span class="badge">${esc(p.prov)}</span>`:""}
           ${p.diasAlerta?`<span class="badge">⏰ aviso ${p.diasAlerta}d</span>`:""}
+          ${(()=>{const d=lotesDesbalance(p); return d?`<span class="badge err">⚠ lotes ${fmtN(sumaLotes(p.key))}/${fmtN(totalOf(p.key))}</span>`:"";})()}
           ${nota?`<span class="badge">📝 ${esc(nota.length>28?nota.slice(0,28)+"…":nota)}</span>`:""}
-          ${lotes.length?`<span class="badge ${proxVenc<=diasDe(p)?"venc-soon":""}">📅 vence ${fmtFecha(lotes.slice().sort()[0])}</span>`:""}
+          ${lotes.length?`<span class="badge ${ev==="vencido"?"venc-soon":ev==="por-vencer"?"venc-warn":""}">📅 ${ev==="vencido"?"VENCIDO ":""}${fmtFecha(lotes[0].f)}${lotes[0].q!=null?" · "+fmtN(lotes[0].q)+"u":""}${lotes[0].n?" · "+esc(lotes[0].n):""}${lotes.length>1?" +"+(lotes.length-1):""}</span>`:""}
           ${S.pedir[p.key]?`<span class="badge venc-soon">🛒 PEDIR</span>`:""}
           ${prevPendiente(p.key)?`<span class="badge" style="background:#fdf3e3;color:#7a5200;border:1px dashed #f0d9ac">📅 anterior ${fmtFecha(PREV[p.key].slice().sort()[0])} · confirmar</span>`:""}
         </div>
@@ -709,10 +757,11 @@ function renderAlerta(){
   const avisos=[];
   S.productos.forEach(p=>{
     const dp=diasDe(p);
-    (S.lotes[p.key]||[]).forEach(l=>{
-      const d=diasHasta(l);
-      if(d<0) avisos.push(`<b>${esc(p.nombre)}</b> venció el ${fmtFecha(l)}`);
-      else if(d<=dp) avisos.push(`<b>${esc(p.nombre)}</b> vence en ${d} día${d===1?"":"s"} (${fmtFecha(l)})`);
+    lotesDe(p.key).forEach(l=>{
+      const d=diasHasta(l.f);
+      const q=l.q!=null?` — ${fmtN(l.q)} u`:"";
+      if(d<0) avisos.push(`<b>${esc(p.nombre)}</b> VENCIÓ el ${fmtFecha(l.f)}${q}`);
+      else if(d<=dp) avisos.push(`<b>${esc(p.nombre)}</b> vence en ${d} día${d===1?"":"s"} (${fmtFecha(l.f)}${q})`);
     });
   });
   const el=$("#alertVenc");
@@ -737,7 +786,7 @@ $("#lista").addEventListener("click",e=>{
   if(step){
     const [f,d]=step.dataset.step.split(",");
     const c=cnt(key); let v=Math.max(0,(c[f]||0)+Number(d)); if(p.unidad==="%"){ v=Math.min(100,Math.max(0,(c[f]||0)+Number(d)*5)); }
-    S.counts[key]={...c,[f]:v}; touch(key); save(); render(); return;
+    S.counts[key]={...c,[f]:v}; repartirLotes(key); touch(key); save(); render(); return;
   }
   const kp=e.target.closest("[data-kp]");
   if(kp){ openKeypad(key, kp.dataset.kp, p.nombre); return; }
@@ -746,7 +795,7 @@ $("#lista").addEventListener("click",e=>{
     $("#notaText").value=S.notas[key]||""; openM("mNota"); return;
   }
   if(e.target.closest("[data-lotes]")){
-    lotesKey=key; loteEdit=null; $("#lotesTitle").textContent="Vencimientos — "+p.nombre;
+    lotesKey=key; loteEdit=null; $("#loteCant").value=""; $("#loteNum").value=""; $("#lotesTitle").textContent="Vencimientos — "+p.nombre;
     renderLotes(); $("#loteFecha").value=""; openM("mLotes"); return;
   }
   if(e.target.closest("[data-pedir]")){
@@ -816,7 +865,7 @@ function commitKp(){
   const c=cnt(kpKey);
   const v = kpVal===""||kpVal==="." ? null : Math.max(0,parseFloat(kpVal));
   S.counts[kpKey]={...c,[kpStrip]: (v==null||isNaN(v))?null:v};
-  touch(kpKey); save();
+  repartirLotes(kpKey); touch(kpKey); save();
 }
 $("#mKeypad").addEventListener("click",e=>{
   const q=e.target.closest("[data-q]");
@@ -848,7 +897,7 @@ function renderLotes(){
     pb.style.display="block";
     pb.innerHTML=`<div class="prevbox">
       <div class="muted">Del inventario anterior:</div>
-      <div class="fechas">📅 ${PREV[lotesKey].slice().sort().map(fmtFecha).join(" · ")}</div>
+      <div class="fechas">📅 ${PREV[lotesKey].map(fmtLote).join("<br>📅 ")}</div>
       <div class="acciones">
         <button class="btn btn-primary" data-prev="ok">✓ Sigue igual</button>
         <button class="btn btn-ghost" data-prev="no">Ya no está</button>
@@ -860,19 +909,33 @@ function renderLotes(){
   $("#loteDias").textContent = "Avisa "+diasDe(pL)+" días antes"+(pL&&pL.diasAlerta?" (propio de este producto)":" (general)")+".";
   $("#loteAdd").textContent = loteEdit==null ? "＋ Agregar lote" : "✓ Guardar cambio";
   $("#loteLbl").textContent = loteEdit==null ? "Agregar fecha de vencimiento" : "Editar la fecha seleccionada";
-  const lotes=(S.lotes[lotesKey]||[]).slice().sort();
+  const lotes=lotesDe(lotesKey);
+  const tq=lotes.reduce((a,l)=>a+(l.q||0),0);
+  const totP=totalOf(lotesKey);
+  const est=$("#loteEstado");
+  if(lotes.length && totP!=null){
+    const dif=Math.round((tq-totP)*100)/100;
+    est.style.display="block";
+    est.className="lotestado "+(dif===0?"ok":"mal");
+    est.innerHTML = dif===0
+      ? `✓ Contado: <b>${fmtN(totP)} u</b> · repartido en lotes: <b>${fmtN(tq)} u</b>`
+      : `⚠️ Contaste <b>${fmtN(totP)} u</b> pero los lotes suman <b>${fmtN(tq)} u</b> — ${dif>0?"sobran "+fmtN(dif):"faltan "+fmtN(-dif)} u`;
+  } else if(lotes.length){
+    est.style.display="block"; est.className="lotestado";
+    est.innerHTML=`<span class="muted">Todavía no contaste este producto. Total en lotes: <b>${fmtN(tq)} u</b></span>`;
+  } else est.style.display="none";
   $("#lotesList").innerHTML = lotes.length
     ? lotes.map((l,i)=>{
-        const d=diasHasta(l);
+        const d=diasHasta(l.f);
         const tag = d<0?`<span style="color:var(--danger);font-weight:700">VENCIDO</span>`
                   : d<=diasDeKey(lotesKey)?`<span style="color:var(--warn);font-weight:700">en ${d}d</span>`:"";
-        return `<div class="lote-item"><span data-ed="${i}" style="cursor:pointer">📅 ${fmtFecha(l)}</span> ${tag}<button class="x" data-ed="${i}" style="background:#eef2f5;color:var(--ink);margin-left:auto">✎</button><button class="x" data-li="${i}">✕</button></div>`;
+        return `<div class="lote-item"><span data-ed="${i}" style="cursor:pointer">📅 ${fmtFecha(l.f)}${l.q!=null?` · <b>${fmtN(l.q)} u</b>`:""}${l.n?` · <span class="muted">lote ${esc(l.n)}</span>`:""}</span> ${tag}<button class="x" data-ed="${i}" style="background:#eef2f5;color:var(--ink);margin-left:auto">✎</button><button class="x" data-li="${i}">✕</button></div>`;
       }).join("")
     : `<p class="muted">Sin fechas cargadas.</p>`;
 }
 $("#prevBox").addEventListener("click",e=>{
   const b=e.target.closest("[data-prev]"); if(!b) return;
-  if(b.dataset.prev==="ok"){ S.lotes[lotesKey]=PREV[lotesKey].slice(); }
+  if(b.dataset.prev==="ok"){ S.lotes[lotesKey]=PREV[lotesKey].map(l=>({f:l.f, q:l.q, n:l.n||"", m:l.q!=null})); repartirLotes(lotesKey); }
   S.lotesOk[lotesKey]=true;
   touch(lotesKey); save(); renderLotes(); render();
   toast(b.dataset.prev==="ok"?"Vencimiento confirmado":"Marcado como sin lote anterior");
@@ -881,28 +944,39 @@ $("#prevBox").addEventListener("click",e=>{
 $("#lotesList").addEventListener("click",e=>{
   const ed=e.target.closest("[data-ed]");
   if(ed){
-    const lotes=(S.lotes[lotesKey]||[]).slice().sort();
+    const lotes=lotesDe(lotesKey);
     loteEdit=Number(ed.dataset.ed);
-    $("#loteFecha").value=lotes[loteEdit]||"";
+    const L=lotes[loteEdit]||{};
+    $("#loteFecha").value=L.f||"";
+    $("#loteCant").value=L.q==null?"":L.q;
+    $("#loteNum").value=L.n||"";
     renderLotes();
     $("#loteFecha").focus();
     return;
   }
   const b=e.target.closest("[data-li]"); if(!b) return;
-  const lotes=(S.lotes[lotesKey]||[]).slice().sort();
+  const lotes=lotesDe(lotesKey);
   lotes.splice(Number(b.dataset.li),1); loteEdit=null;
-  if(lotes.length) S.lotes[lotesKey]=lotes; else delete S.lotes[lotesKey];
+  if(lotes.length){ S.lotes[lotesKey]=lotes; repartirLotes(lotesKey); } else delete S.lotes[lotesKey];
   touch(lotesKey); save(); renderLotes(); render();
 });
 $("#loteAdd").onclick=()=>{
   const f=$("#loteFecha").value; if(!f){ toast("Elegí una fecha"); return; }
+  const cRaw=$("#loteCant").value.trim();
+  const q = cRaw==="" ? null : Math.max(0, parseFloat(cRaw.replace(",",".")));
+  const qf=(q==null||isNaN(q))?null:q;
+  const nLote=$("#loteNum").value.trim();
+  const nuevo={f, q:qf, m:qf!=null, n:nLote};
   if(loteEdit!=null){
-    const lotes=(S.lotes[lotesKey]||[]).slice().sort();
-    lotes[loteEdit]=f; S.lotes[lotesKey]=lotes; loteEdit=null;
-    toast("Fecha actualizada");
+    const lotes=lotesDe(lotesKey);
+    lotes[loteEdit]=nuevo; S.lotes[lotesKey]=lotes; loteEdit=null;
+    repartirLotes(lotesKey);
+    toast("Lote actualizado");
   } else {
-    S.lotes[lotesKey]=[...(S.lotes[lotesKey]||[]),f];
+    S.lotes[lotesKey]=[...lotesDe(lotesKey), nuevo];
+    repartirLotes(lotesKey);
   }
+  $("#loteCant").value=""; $("#loteNum").value="";
   S.lotesOk[lotesKey]=true;
   $("#loteFecha").value=""; touch(lotesKey); save(); renderLotes(); render();
 };
@@ -986,6 +1060,7 @@ $("#finBtn").onclick=()=>{
     ${S.inicio?`<p class="muted">Iniciado por <b>${esc(S.inicio.quien)}</b> a las ${S.inicio.hora}${S.participantes.length>1?` · Participaron: ${S.participantes.map(esc).join(", ")}`:""}</p>`:""}
     <p style="font-size:16px">Productos con conteo: <b>${contados}</b> de ${S.productos.length}.</p>
     ${(()=>{const sv=S.productos.filter(p=>prevPendiente(p.key)); return sv.length?`<p class="muted">📅 Vencimientos sin confirmar: <b>${sv.length}</b></p><div class="sincontar">${sv.map(p=>`<span>${esc(p.nombre)}</span>`).join("")}</div>`:"";})()}
+    ${(()=>{const db=S.productos.filter(p=>lotesDesbalance(p)); return db.length?`<p class="muted">⚠️ Lotes que no cuadran con lo contado: <b>${db.length}</b></p><div class="sincontar">${db.map(p=>`<span>${esc(p.nombre)}: ${fmtN(sumaLotes(p.key))}/${fmtN(totalOf(p.key))}</span>`).join("")}</div>`:"";})()}
     ${sin.length?`<p class="muted">Sin contar (irán con stock vacío):</p>
       <div class="sincontar">${sin.map(p=>`<span>${esc(p.nombre)}</span>`).join("")}</div>`:""}
   `;
@@ -999,8 +1074,10 @@ $("#finOk").onclick=()=>{
   if(!persona){ toast("Ingresá quién lo hizo"); return; }
   const sinContar=S.productos.filter(p=>totalOf(p.key)==null);
   if(sinContar.length && !confirm("⚠️ Quedan "+sinContar.length+" productos SIN CONTAR:\n\n"+sinContar.map(p=>"• "+p.nombre).join("\n")+"\n\n¿Finalizar y enviar igual?")) return;
+  const desbal=S.productos.filter(p=>lotesDesbalance(p));
+  if(desbal.length && !confirm("⚠️ En "+desbal.length+" producto(s) las unidades de los lotes NO coinciden con lo contado:\n\n"+desbal.map(p=>"• "+p.nombre+": contado "+fmtN(totalOf(p.key))+" u, lotes "+fmtN(sumaLotes(p.key))+" u").join("\n")+"\n\n¿Finalizar igual?")) return;
   const sinVenc=S.productos.filter(p=>prevPendiente(p.key));
-  if(sinVenc.length && !confirm("📅 Hay "+sinVenc.length+" productos con fecha de vencimiento del inventario anterior SIN CONFIRMAR:\n\n"+sinVenc.map(p=>"• "+p.nombre+" ("+PREV[p.key].slice().sort().map(fmtFecha).join(", ")+")").join("\n")+"\n\n¿Finalizar igual? (se enviarán sin fecha)")) return;
+  if(sinVenc.length && !confirm("📅 Hay "+sinVenc.length+" productos con fecha de vencimiento del inventario anterior SIN CONFIRMAR:\n\n"+sinVenc.map(p=>"• "+p.nombre+" ("+PREV[p.key].map(fmtLote).join(" / ")+")").join("\n")+"\n\n¿Finalizar igual? (se enviarán sin fecha)")) return;
   S.persona=persona; refreshPersona();
   const fecha=new Date();
   const fstr=String(fecha.getDate()).padStart(2,"0")+"/"+String(fecha.getMonth()+1).padStart(2,"0")+"/"+fecha.getFullYear();
@@ -1009,7 +1086,7 @@ $("#finOk").onclick=()=>{
     return {key:p.key, id:p.id||"", fam:p.fam, nombre:p.nombre, bc:p.bc, unidad:p.unidad,
       prov:p.prov||"", sino:!!p.sino, min:p.min==null?"":p.min,
       h:c.h, a:c.a, total:totalOf(p.key), nota:S.notas[p.key]||"",
-      lotes:(S.lotes[p.key]||[]).slice().sort().map(fmtFecha).join(", "), pedir:S.pedir[p.key]?"SÍ":""};
+      lotes:lotesDe(p.key).map(l=>fmtFecha(l.f)+(l.q!=null?" ("+fmtN(l.q)+")":"")+(l.n?" #"+l.n:"")).join(", "), pedir:S.pedir[p.key]?"SÍ":""};
   });
   if(!S.participantes.includes(persona)) S.participantes.push(persona);
   const inv={fecha:fstr, iso:fecha.toISOString(), persona,
