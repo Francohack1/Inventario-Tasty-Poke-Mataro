@@ -224,6 +224,7 @@
 <div class="modal-bg" id="mLotes">
   <div class="modal">
     <h2 id="lotesTitle">Vencimientos de lote</h2>
+    <p class="muted" id="loteDias" style="margin:0 0 10px"></p>
     <div id="prevBox"></div>
     <div id="lotesList"></div>
     <label id="loteLbl">Agregar fecha de vencimiento</label>
@@ -318,7 +319,7 @@
     <div class="ayuda-item"><div class="ic">📊</div><div><b>Barra de progreso</b>Arriba se ve cuántos productos llevan contados sobre el total. Se completa sola a medida que cargás cantidades.</div></div>
     <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
     <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar producto</b>Para productos nuevos. Se guardan para los próximos inventarios y aparecen en todos los dispositivos (igual que al eliminar o reordenar).</div></div>
-    <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para poner los productos en el orden del local, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo de cada uno, y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
+    <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para ordenar, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo, tocá 📅 para darle a ese producto sus propios días de aviso de vencimiento (ideal para los de vida corta), y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
     <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra quién inició el conteo y quién lo cierra, qué faltó contar, pide confirmar, y arma el Excel. Al confirmar, el conteo se cierra en TODOS los dispositivos y el inventario queda en el Historial de cada uno. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
     <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Los últimos 12 inventarios, con opción de volver a bajar el Excel o reenviarlo por correo. Se guardan en la nube, así que se ven desde cualquier dispositivo y no se pierden aunque se borren los datos del navegador.</div></div>
     <div class="ayuda-item"><div class="ic">⚙️</div><div><b>Ajustes</b>El botón ⚙️ arriba cambia con cuántos días de anticipación avisa la app de los vencimientos (ahora: <b style="display:inline" id="diasAct2"></b>).</div></div>
@@ -482,6 +483,7 @@ const SEED = [
 const EMAIL = "mataro@tastypokebar.com";
 const DIAS_ALERTA_DEF = 10;
 function diasAlerta(){ return (S && S.diasAlerta) || DIAS_ALERTA_DEF; }
+function diasDe(p){ return (p && p.diasAlerta) || diasAlerta(); }
 const LS_KEY = "invBebidasMataro_v10";
 
 /* ================= ESTADO ================= */
@@ -511,7 +513,8 @@ function mismoSeed(lista){
 function migrarSeed(lista){
   const prev={}; lista.forEach(p=>prev[p.key]=p);
   const base=SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p}));
-  base.forEach(p=>{ const o=prev[p.key]; if(o && o.minUser){ p.min=o.min; p.minUser=true; } });
+  base.forEach(p=>{ const o=prev[p.key]; if(o && o.minUser){ p.min=o.min; p.minUser=true; }
+    if(o && o.diasAlerta){ p.diasAlerta=o.diasAlerta; } });
   const custom=lista.filter(esCustom);
   const orden=lista.map(p=>p.key);
   const todos=base.concat(custom);
@@ -560,6 +563,7 @@ function calcPrev(){
     if(fs.length) PREV[k]=fs;
   });
 }
+function diasDeKey(k){ const p=S.productos.find(x=>x.key===k); return diasDe(p); }
 function prevPendiente(key){ return !!PREV[key] && !S.lotesOk[key] && !(S.lotes[key]||[]).length; }
 function hhmm(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
 function fechaHoy(){ const d=new Date(); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear(); }
@@ -662,8 +666,9 @@ function render(){
         <div class="p-badges">
           <span class="badge">${famShort(p.fam)}</span>
           ${p.prov?`<span class="badge">${esc(p.prov)}</span>`:""}
+          ${p.diasAlerta?`<span class="badge">⏰ aviso ${p.diasAlerta}d</span>`:""}
           ${nota?`<span class="badge">📝 ${esc(nota.length>28?nota.slice(0,28)+"…":nota)}</span>`:""}
-          ${lotes.length?`<span class="badge ${proxVenc<=diasAlerta()?"venc-soon":""}">📅 vence ${fmtFecha(lotes.slice().sort()[0])}</span>`:""}
+          ${lotes.length?`<span class="badge ${proxVenc<=diasDe(p)?"venc-soon":""}">📅 vence ${fmtFecha(lotes.slice().sort()[0])}</span>`:""}
           ${S.pedir[p.key]?`<span class="badge venc-soon">🛒 PEDIR</span>`:""}
           ${prevPendiente(p.key)?`<span class="badge" style="background:#fdf3e3;color:#7a5200;border:1px dashed #f0d9ac">📅 anterior ${fmtFecha(PREV[p.key].slice().sort()[0])} · confirmar</span>`:""}
         </div>
@@ -703,10 +708,11 @@ function renderProgreso(){
 function renderAlerta(){
   const avisos=[];
   S.productos.forEach(p=>{
+    const dp=diasDe(p);
     (S.lotes[p.key]||[]).forEach(l=>{
       const d=diasHasta(l);
       if(d<0) avisos.push(`<b>${esc(p.nombre)}</b> venció el ${fmtFecha(l)}`);
-      else if(d<=diasAlerta()) avisos.push(`<b>${esc(p.nombre)}</b> vence en ${d} día${d===1?"":"s"} (${fmtFecha(l)})`);
+      else if(d<=dp) avisos.push(`<b>${esc(p.nombre)}</b> vence en ${d} día${d===1?"":"s"} (${fmtFecha(l)})`);
     });
   });
   const el=$("#alertVenc");
@@ -746,6 +752,21 @@ $("#lista").addEventListener("click",e=>{
   if(e.target.closest("[data-pedir]")){
     if(S.pedir[key]) delete S.pedir[key]; else S.pedir[key]="man";
     touch(key); save(); render(); return;
+  }
+  if(editMode && e.target.closest("[data-lotes]")){
+    const actual = p.diasAlerta || "";
+    const v = prompt("¿Con cuántos días de anticipación avisar el vencimiento de "+p.nombre+"?\n\nVacío = usar el general ("+diasAlerta()+" días).", actual);
+    if(v===null) return;
+    const t=String(v).trim();
+    if(t===""){ delete p.diasAlerta; }
+    else{
+      const n=parseInt(t,10);
+      if(isNaN(n)||n<1||n>365){ toast("Poné un número entre 1 y 365"); return; }
+      p.diasAlerta=n;
+    }
+    save(); render(); syncPush(true);
+    toast(p.diasAlerta? p.nombre+": aviso a "+p.diasAlerta+" días" : p.nombre+": usa el aviso general");
+    return;
   }
   if(editMode && e.target.closest("[data-min]")){
     const actual = p.min==null?"":String(p.min);
@@ -835,6 +856,8 @@ function renderLotes(){
       <p class="muted" style="margin:10px 0 0">O cargá la fecha nueva abajo.</p>
     </div>`;
   } else pb.style.display="none";
+  const pL=S.productos.find(x=>x.key===lotesKey);
+  $("#loteDias").textContent = "Avisa "+diasDe(pL)+" días antes"+(pL&&pL.diasAlerta?" (propio de este producto)":" (general)")+".";
   $("#loteAdd").textContent = loteEdit==null ? "＋ Agregar lote" : "✓ Guardar cambio";
   $("#loteLbl").textContent = loteEdit==null ? "Agregar fecha de vencimiento" : "Editar la fecha seleccionada";
   const lotes=(S.lotes[lotesKey]||[]).slice().sort();
@@ -842,7 +865,7 @@ function renderLotes(){
     ? lotes.map((l,i)=>{
         const d=diasHasta(l);
         const tag = d<0?`<span style="color:var(--danger);font-weight:700">VENCIDO</span>`
-                  : d<=diasAlerta()?`<span style="color:var(--warn);font-weight:700">en ${d}d</span>`:"";
+                  : d<=diasDeKey(lotesKey)?`<span style="color:var(--warn);font-weight:700">en ${d}d</span>`:"";
         return `<div class="lote-item"><span data-ed="${i}" style="cursor:pointer">📅 ${fmtFecha(l)}</span> ${tag}<button class="x" data-ed="${i}" style="background:#eef2f5;color:var(--ink);margin-left:auto">✎</button><button class="x" data-li="${i}">✕</button></div>`;
       }).join("")
     : `<p class="muted">Sin fechas cargadas.</p>`;
