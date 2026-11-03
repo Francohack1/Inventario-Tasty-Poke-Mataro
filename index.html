@@ -77,6 +77,11 @@
   .icon-btn{border:none; background:#f0f3f6; border-radius:10px; width:42px; height:42px; font-size:18px;
     cursor:pointer; color:var(--muted); flex:none;}
   .icon-btn.active{background:#e3f1ed; color:var(--accent);}
+  .icon-btn.pendiente{background:#fdf3e3; color:var(--warn); border:1px dashed var(--warn);}
+  .prevbox{background:#fdf3e3; border:1px solid #f0d9ac; border-radius:12px; padding:12px; margin-bottom:12px;}
+  .prevbox .fechas{font-size:17px; font-weight:700; margin:4px 0 10px;}
+  .prevbox .acciones{display:flex; gap:8px; flex-wrap:wrap;}
+  .prevbox .acciones .btn{flex:1; min-width:110px; padding:12px 10px; font-size:14px;}
 
   .counter{display:flex; flex-direction:column; align-items:center; gap:2px; flex:none;}
   .counter .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
@@ -218,6 +223,7 @@
 <div class="modal-bg" id="mLotes">
   <div class="modal">
     <h2 id="lotesTitle">Vencimientos de lote</h2>
+    <div id="prevBox"></div>
     <div id="lotesList"></div>
     <label>Agregar fecha de vencimiento</label>
     <input type="date" id="loteFecha">
@@ -306,7 +312,7 @@
     <h2>¿Cómo se usa?</h2>
     <div class="ayuda-item"><div class="ic">🧊📦</div><div><b>Heladera y Almacén</b>Contá cada zona por separado (según el producto: Heladera/Almacén, Congelado/Descongelado, Cocina/Barra…). Con − y ＋ vas de a uno, o tocá el número para el teclado grande. Algunos productos tienen un solo contador o botones Sí/No de "suficiente". El Total se suma solo.</div></div>
     <div class="ayuda-item"><div class="ic">📝</div><div><b>Nota</b>Comentario opcional del producto (ej. "llegó caja rota"). Sale en el Excel.</div></div>
-    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Cuando falten 15 días o menos, la app avisa arriba al abrirla.</div></div>
+    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Si el producto tenía fecha en el inventario anterior, aparece precargada con el botón 📅 en ámbar: tocalo y elegí "Sigue igual", "Ya no está" o cargá la fecha nueva. Al finalizar, la app avisa si quedó alguna sin confirmar. Cuando el vencimiento esté cerca, aparece un aviso arriba y el producto se marca en rojo — <a href="#" id="cfgDias2">⚙️ cambiar los días de aviso</a> (ahora: <b style="display:inline" id="diasAct"></b>).</div></div>
     <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>Tocá 🛒 si hay que reponer. Además, cada producto tiene un <b style="display:inline">mínimo</b>: si el total queda en ese número o por debajo, la fila se pone roja y se marca 🛒 sola; si después subís la cantidad por encima del mínimo, se desmarca sola. Todo sale en el Excel.</div></div>
     <div class="ayuda-item"><div class="ic">📊</div><div><b>Barra de progreso</b>Arriba se ve cuántos productos llevan contados sobre el total. Se completa sola a medida que cargás cantidades.</div></div>
     <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
@@ -472,7 +478,8 @@ const SEED = [
 {"id": 0, "fam": "ENVASES", "nombre": "Pegatina Açaí", "desc": "", "bc": "", "unidad": "Unidad", "prov": "Log", "sino": true}
 ];
 const EMAIL = "mataro@tastypokebar.com";
-const DIAS_ALERTA = 15;
+const DIAS_ALERTA_DEF = 10;
+function diasAlerta(){ return (S && S.diasAlerta) || DIAS_ALERTA_DEF; }
 const LS_KEY = "invBebidasMataro_v10";
 
 /* ================= ESTADO ================= */
@@ -480,7 +487,7 @@ let S = load();
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; s.ts=s.ts||{}; s.crev=s.crev||0; s.participantes=s.participantes||[]; s.ultimoCierre=s.ultimoCierre||"";
+    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; s.ts=s.ts||{}; s.crev=s.crev||0; s.participantes=s.participantes||[]; s.ultimoCierre=s.ultimoCierre||""; s.lotesOk=s.lotesOk||{}; s.diasAlerta=s.diasAlerta||DIAS_ALERTA_DEF;
         if(!mismoSeed(s.productos)){ s.productos=migrarSeed(s.productos); s.rev=Date.now(); }
         Object.keys(s.pedir).forEach(k=>{ if(s.pedir[k]!=="man") s.pedir[k]="auto"; });
         return s; } }
@@ -488,7 +495,7 @@ function load(){
   return {
     persona:"",
     productos: SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p})),
-    rev:0, crev:0, ultimoCierre:"", ts:{}, inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, history:[]
+    rev:0, crev:0, ultimoCierre:"", diasAlerta:DIAS_ALERTA_DEF, ts:{}, lotesOk:{}, inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, history:[]
   };
 }
 const SEED_KEYS = new Set(SEED.map((p,i)=>"p"+(p.id||("x"+i))));
@@ -538,6 +545,20 @@ function autoPedir(){
 function totalOf(k){ const c=cnt(k); if(c.h==null && c.a==null) return null; return (c.h||0)+(c.a||0); }
 function fmtN(n){ return n==null ? "—" : (Math.round(n*100)/100).toString().replace(".",","); }
 function fmtFecha(iso){ const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y; }
+function parseFecha(f){ const m=String(f).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m? m[3]+"-"+m[2]+"-"+m[1] : null; }
+let PREV={};
+function calcPrev(){
+  PREV={}; const h=S.history[0]; if(!h || !h.rows) return;
+  h.rows.forEach(r=>{
+    if(!r.lotes) return;
+    let k=r.key; 
+    if(!k){ const p=S.productos.find(x=>x.nombre===r.nombre); k=p&&p.key; }
+    if(!k) return;
+    const fs=String(r.lotes).split(",").map(s=>parseFecha(s)).filter(Boolean);
+    if(fs.length) PREV[k]=fs;
+  });
+}
+function prevPendiente(key){ return !!PREV[key] && !S.lotesOk[key] && !(S.lotes[key]||[]).length; }
 function hhmm(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
 function fechaHoy(){ const d=new Date(); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear(); }
 function hoyISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -581,6 +602,7 @@ $("#subchips").addEventListener("click",e=>{
 $("#buscar").addEventListener("input",e=>{ filtro=e.target.value.trim().toLowerCase(); render(); });
 
 function render(){
+  calcPrev();
   if(autoPedir()) save();
   const main=$("#lista");
   main.innerHTML="";
@@ -639,15 +661,16 @@ function render(){
           <span class="badge">${famShort(p.fam)}</span>
           ${p.prov?`<span class="badge">${esc(p.prov)}</span>`:""}
           ${nota?`<span class="badge">📝 ${esc(nota.length>28?nota.slice(0,28)+"…":nota)}</span>`:""}
-          ${lotes.length?`<span class="badge ${proxVenc<=DIAS_ALERTA?"venc-soon":""}">📅 vence ${fmtFecha(lotes.slice().sort()[0])}</span>`:""}
+          ${lotes.length?`<span class="badge ${proxVenc<=diasAlerta()?"venc-soon":""}">📅 vence ${fmtFecha(lotes.slice().sort()[0])}</span>`:""}
           ${S.pedir[p.key]?`<span class="badge venc-soon">🛒 PEDIR</span>`:""}
+          ${prevPendiente(p.key)?`<span class="badge" style="background:#fdf3e3;color:#7a5200;border:1px dashed #f0d9ac">📅 anterior ${fmtFecha(PREV[p.key].slice().sort()[0])} · confirmar</span>`:""}
         </div>
       </div>
       ${counters}
       <div class="total"><div class="lbl">Total</div><div class="n ${tot==null?"zero":""}">${p.sino?(tot==null?"—":(c.h===1?"Sí":"No")):(tot==null?"—":fmtN(tot)+(p.unidad==="%"?"%":""))}</div></div>
       <div class="minbox ${bajoMin(p)?"alerta":""}" ${editMode?'data-min style="cursor:pointer;border:1px dashed var(--accent);border-radius:10px"':""}><div class="lbl">Mín${editMode?" ✏️":""}</div><div class="n">${p.min==null?"—":fmtN(p.min)+(p.unidad==="%"?"%":"")}</div></div>
       <button class="icon-btn ${nota?"active":""}" data-nota title="Nota">📝</button>
-      <button class="icon-btn ${lotes.length?"active":""}" data-lotes title="Vencimiento">📅</button>
+      <button class="icon-btn ${lotes.length?"active":prevPendiente(p.key)?"pendiente":""}" data-lotes title="Vencimiento">📅</button>
       <button class="icon-btn ${S.pedir[p.key]?"active":""}" data-pedir title="Hay que pedir">🛒</button>
       ${editMode?`<button class="icon-btn" data-del style="background:#fdecec;color:var(--danger)">🗑</button>`:""}
     `;
@@ -681,11 +704,11 @@ function renderAlerta(){
     (S.lotes[p.key]||[]).forEach(l=>{
       const d=diasHasta(l);
       if(d<0) avisos.push(`<b>${esc(p.nombre)}</b> venció el ${fmtFecha(l)}`);
-      else if(d<=DIAS_ALERTA) avisos.push(`<b>${esc(p.nombre)}</b> vence en ${d} día${d===1?"":"s"} (${fmtFecha(l)})`);
+      else if(d<=diasAlerta()) avisos.push(`<b>${esc(p.nombre)}</b> vence en ${d} día${d===1?"":"s"} (${fmtFecha(l)})`);
     });
   });
   const el=$("#alertVenc");
-  if(avisos.length){ el.innerHTML="⚠️ Vencimientos: "+avisos.join(" · "); el.style.display="block"; }
+  if(avisos.length){ el.innerHTML="⚠️ Vencimientos (próximos "+diasAlerta()+" días): "+avisos.join(" · ")+' <a href="#" id="cfgDias" style="white-space:nowrap">⚙️ cambiar días</a>'; el.style.display="block"; }
   else el.style.display="none";
 }
 
@@ -797,16 +820,37 @@ $("#notaOk").onclick=()=>{
 /* Lotes */
 let lotesKey=null;
 function renderLotes(){
+  const pb=$("#prevBox");
+  if(PREV[lotesKey] && !(S.lotes[lotesKey]||[]).length && !S.lotesOk[lotesKey]){
+    pb.style.display="block";
+    pb.innerHTML=`<div class="prevbox">
+      <div class="muted">Del inventario anterior:</div>
+      <div class="fechas">📅 ${PREV[lotesKey].slice().sort().map(fmtFecha).join(" · ")}</div>
+      <div class="acciones">
+        <button class="btn btn-primary" data-prev="ok">✓ Sigue igual</button>
+        <button class="btn btn-ghost" data-prev="no">Ya no está</button>
+      </div>
+      <p class="muted" style="margin:10px 0 0">O cargá la fecha nueva abajo.</p>
+    </div>`;
+  } else pb.style.display="none";
   const lotes=(S.lotes[lotesKey]||[]).slice().sort();
   $("#lotesList").innerHTML = lotes.length
     ? lotes.map((l,i)=>{
         const d=diasHasta(l);
         const tag = d<0?`<span style="color:var(--danger);font-weight:700">VENCIDO</span>`
-                  : d<=DIAS_ALERTA?`<span style="color:var(--warn);font-weight:700">en ${d}d</span>`:"";
+                  : d<=diasAlerta()?`<span style="color:var(--warn);font-weight:700">en ${d}d</span>`:"";
         return `<div class="lote-item">📅 ${fmtFecha(l)} ${tag}<button class="x" data-li="${i}">✕</button></div>`;
       }).join("")
     : `<p class="muted">Sin fechas cargadas.</p>`;
 }
+$("#prevBox").addEventListener("click",e=>{
+  const b=e.target.closest("[data-prev]"); if(!b) return;
+  if(b.dataset.prev==="ok"){ S.lotes[lotesKey]=PREV[lotesKey].slice(); }
+  S.lotesOk[lotesKey]=true;
+  touch(lotesKey); save(); renderLotes(); render();
+  toast(b.dataset.prev==="ok"?"Vencimiento confirmado":"Marcado como sin lote anterior");
+  closeM("mLotes");
+});
 $("#lotesList").addEventListener("click",e=>{
   const b=e.target.closest("[data-li]"); if(!b) return;
   const lotes=(S.lotes[lotesKey]||[]).slice().sort();
@@ -816,7 +860,7 @@ $("#lotesList").addEventListener("click",e=>{
 });
 $("#loteAdd").onclick=()=>{
   const f=$("#loteFecha").value; if(!f){ toast("Elegí una fecha"); return; }
-  S.lotes[lotesKey]=[...(S.lotes[lotesKey]||[]),f];
+  S.lotes[lotesKey]=[...(S.lotes[lotesKey]||[]),f]; S.lotesOk[lotesKey]=true;
   $("#loteFecha").value=""; touch(lotesKey); save(); renderLotes(); render();
 };
 
@@ -898,6 +942,7 @@ $("#finBtn").onclick=()=>{
   $("#finResumen").innerHTML=`
     ${S.inicio?`<p class="muted">Iniciado por <b>${esc(S.inicio.quien)}</b> a las ${S.inicio.hora}${S.participantes.length>1?` · Participaron: ${S.participantes.map(esc).join(", ")}`:""}</p>`:""}
     <p style="font-size:16px">Productos con conteo: <b>${contados}</b> de ${S.productos.length}.</p>
+    ${(()=>{const sv=S.productos.filter(p=>prevPendiente(p.key)); return sv.length?`<p class="muted">📅 Vencimientos sin confirmar: <b>${sv.length}</b></p><div class="sincontar">${sv.map(p=>`<span>${esc(p.nombre)}</span>`).join("")}</div>`:"";})()}
     ${sin.length?`<p class="muted">Sin contar (irán con stock vacío):</p>
       <div class="sincontar">${sin.map(p=>`<span>${esc(p.nombre)}</span>`).join("")}</div>`:""}
   `;
@@ -911,12 +956,14 @@ $("#finOk").onclick=()=>{
   if(!persona){ toast("Ingresá quién lo hizo"); return; }
   const sinContar=S.productos.filter(p=>totalOf(p.key)==null);
   if(sinContar.length && !confirm("⚠️ Quedan "+sinContar.length+" productos SIN CONTAR:\n\n"+sinContar.map(p=>"• "+p.nombre).join("\n")+"\n\n¿Finalizar y enviar igual?")) return;
+  const sinVenc=S.productos.filter(p=>prevPendiente(p.key));
+  if(sinVenc.length && !confirm("📅 Hay "+sinVenc.length+" productos con fecha de vencimiento del inventario anterior SIN CONFIRMAR:\n\n"+sinVenc.map(p=>"• "+p.nombre+" ("+PREV[p.key].slice().sort().map(fmtFecha).join(", ")+")").join("\n")+"\n\n¿Finalizar igual? (se enviarán sin fecha)")) return;
   S.persona=persona; refreshPersona();
   const fecha=new Date();
   const fstr=String(fecha.getDate()).padStart(2,"0")+"/"+String(fecha.getMonth()+1).padStart(2,"0")+"/"+fecha.getFullYear();
   const rows=S.productos.map(p=>{
     const c=cnt(p.key);
-    return {id:p.id||"", fam:p.fam, nombre:p.nombre, bc:p.bc, unidad:p.unidad,
+    return {key:p.key, id:p.id||"", fam:p.fam, nombre:p.nombre, bc:p.bc, unidad:p.unidad,
       prov:p.prov||"", sino:!!p.sino, min:p.min==null?"":p.min,
       h:c.h, a:c.a, total:totalOf(p.key), nota:S.notas[p.key]||"",
       lotes:(S.lotes[p.key]||[]).slice().sort().map(fmtFecha).join(", "), pedir:S.pedir[p.key]?"SÍ":""};
@@ -980,7 +1027,7 @@ $("#doneMail").onclick=()=>{
 };
 function cerrarParaTodos(inv){
   S.ultimoCierre=inv.iso;
-  S.counts={}; S.notas={}; S.lotes={}; S.pedir={}; S.ts={}; S.persona=""; S.inicio=null; S.participantes=[];
+  S.counts={}; S.notas={}; S.lotes={}; S.lotesOk={}; S.pedir={}; S.ts={}; S.persona=""; S.inicio=null; S.participantes=[];
   save(); refreshPersona(); render();
   clearTimeout(pushT);
   api({action:"setConteo", data:{cerrado:{id:inv.iso, inv}, persona:"", inicio:null, participantes:[],
@@ -1201,7 +1248,7 @@ function pushConteo(inmediato){
     try{
       syncTag("↻ guardando conteo…");
       const j=await api({action:"setConteo",
-        data:{persona:S.persona, inicio:S.inicio, participantes:S.participantes, counts:S.counts, notas:S.notas, lotes:S.lotes, pedir:S.pedir, ts:S.ts}});
+        data:{persona:S.persona, inicio:S.inicio, participantes:S.participantes, counts:S.counts, notas:S.notas, lotes:S.lotes, lotesOk:S.lotesOk, pedir:S.pedir, ts:S.ts}});
       if(!j.ok) throw 0;
       syncTag("✓ conteo compartido"); setTimeout(()=>syncTag(""),2000);
     }catch(e){ syncTag("⚠ sin conexión"); setTimeout(()=>syncTag(""),3000); }
@@ -1232,6 +1279,7 @@ async function pullConteo(){
         if(R.notas && R.notas[k]!==undefined) S.notas[k]=R.notas[k]; else delete S.notas[k];
         if(R.lotes && R.lotes[k]!==undefined) S.lotes[k]=R.lotes[k]; else delete S.lotes[k];
         if(R.pedir && R.pedir[k]!==undefined) S.pedir[k]=R.pedir[k]; else delete S.pedir[k];
+        if(R.lotesOk && R.lotesOk[k]!==undefined) S.lotesOk[k]=R.lotesOk[k]; else delete S.lotesOk[k];
         S.ts[k]=rts[k]; cambios++;
       }
     });
@@ -1278,7 +1326,18 @@ document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ syncPul
 if(!S.persona) askPersona();
 /* Ayuda */
 const AYUDA_KEY="invMataroAyudaVista";
-$("#ayudaBtn").onclick=()=>openM("mAyuda");
+function pedirDiasAlerta(){
+  const v=prompt("Avisar cuando falten estos días para el vencimiento:", diasAlerta());
+  if(v===null) return;
+  const n=parseInt(String(v).trim(),10);
+  if(isNaN(n)||n<1||n>365){ toast("Poné un número entre 1 y 365"); return; }
+  S.diasAlerta=n; save(); render(); toast("Aviso configurado a "+n+" días");
+}
+document.addEventListener("click",e=>{
+  const a=e.target.closest("#cfgDias, #cfgDias2");
+  if(a){ e.preventDefault(); pedirDiasAlerta(); }
+});
+$("#ayudaBtn").onclick=()=>{ const d=$("#diasAct"); if(d) d.textContent=diasAlerta()+" días"; openM("mAyuda"); };
 if(!localStorage.getItem(AYUDA_KEY)){ localStorage.setItem(AYUDA_KEY,"1"); openM("mAyuda"); }
 if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 </script>
