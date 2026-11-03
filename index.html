@@ -231,7 +231,13 @@
 <div class="modal-bg" id="mLotes">
   <div class="modal">
     <h2 id="lotesTitle">Vencimientos de lote</h2>
-    <p class="muted" id="loteDias" style="margin:0 0 10px"></p>
+    <div id="loteDiasBox" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f7f9fb;border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:14px">
+      <span>⏰ Avisar</span>
+      <input type="number" id="loteDiasIn" min="1" max="365" style="width:84px;padding:8px;font-size:16px;text-align:center">
+      <span>días antes de vencer</span>
+      <button class="btn btn-ghost" id="loteDiasDef" style="padding:8px 12px;font-size:13px"></button>
+      <span class="muted" id="loteDiasTag" style="width:100%"></span>
+    </div>
     <div id="loteEstado" class="lotestado" style="display:none"></div>
     <div id="prevBox"></div>
     <div id="lotesList"></div>
@@ -326,12 +332,12 @@
     <h2>¿Cómo se usa?</h2>
     <div class="ayuda-item"><div class="ic">🧊📦</div><div><b>Heladera y Almacén</b>Contá cada zona por separado (según el producto: Heladera/Almacén, Congelado/Descongelado, Cocina/Barra…). Con − y ＋ vas de a uno, o tocá el número para el teclado grande. Algunos productos tienen un solo contador o botones Sí/No de "suficiente". El Total se suma solo.</div></div>
     <div class="ayuda-item"><div class="ic">📝</div><div><b>Nota</b>Comentario opcional del producto (ej. "llegó caja rota"). Sale en el Excel.</div></div>
-    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote, cuántas unidades tiene y, si querés, su número o código de lote. Las unidades se reparten solas entre los lotes que no tocaste: si contaste 10 y ponés 6 en una fecha, el otro lote pasa a 4. Si la suma no coincide con lo contado, aparece un aviso en rojo y la app te avisa al finalizar. La fila se pone <b style="display:inline">amarilla</b> cuando el lote más próximo entra en los días de aviso y <b style="display:inline">roja</b> si ya venció. Si el producto tenía fecha en el inventario anterior, aparece precargada con el botón 📅 en ámbar: tocalo y elegí "Sigue igual", "Ya no está" o cargá la fecha nueva. Para corregir una fecha ya cargada, tocá ✎ sobre ella, elegí la nueva y guardá; con ✕ se borra. Al finalizar, la app avisa si quedó alguna sin confirmar. Cuando el vencimiento esté cerca, aparece un aviso arriba y el producto se marca en rojo — <a href="#" id="cfgDias2">⚙️ cambiar los días de aviso</a> (ahora: <b style="display:inline" id="diasAct"></b>).</div></div>
+    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote, cuántas unidades tiene y, si querés, su número o código de lote. Las unidades se reparten solas entre los lotes que no tocaste: si contaste 10 y ponés 6 en una fecha, el otro lote pasa a 4. Si la suma no coincide con lo contado, aparece un aviso en rojo y la app te avisa al finalizar. Arriba de todo podés cambiar con cuántos días de anticipación avisa <b style="display:inline">ese producto</b> (por defecto 10, el general). La fila se pone <b style="display:inline">amarilla</b> cuando el lote más próximo entra en los días de aviso y <b style="display:inline">roja</b> si ya venció. Si el producto tenía fecha en el inventario anterior, aparece precargada con el botón 📅 en ámbar: tocalo y elegí "Sigue igual", "Ya no está" o cargá la fecha nueva. Para corregir una fecha ya cargada, tocá ✎ sobre ella, elegí la nueva y guardá; con ✕ se borra. Al finalizar, la app avisa si quedó alguna sin confirmar. Cuando el vencimiento esté cerca, aparece un aviso arriba y el producto se marca en rojo — <a href="#" id="cfgDias2">⚙️ cambiar los días de aviso</a> (ahora: <b style="display:inline" id="diasAct"></b>).</div></div>
     <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>Tocá 🛒 si hay que reponer. Además, cada producto tiene un <b style="display:inline">mínimo</b>: si el total queda en ese número o por debajo, la fila se pone roja y se marca 🛒 sola; si después subís la cantidad por encima del mínimo, se desmarca sola. Todo sale en el Excel.</div></div>
     <div class="ayuda-item"><div class="ic">📊</div><div><b>Barra de progreso</b>Arriba se ve cuántos productos llevan contados sobre el total. Se completa sola a medida que cargás cantidades.</div></div>
     <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
     <div class="ayuda-item"><div class="ic">＋</div><div><b>Agregar producto</b>Para productos nuevos. Se guardan para los próximos inventarios y aparecen en todos los dispositivos (igual que al eliminar o reordenar).</div></div>
-    <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para ordenar, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo, tocá 📅 para darle a ese producto sus propios días de aviso de vencimiento (ideal para los de vida corta), y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
+    <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para ordenar, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo, y 🗑 para eliminar (pide confirmación); y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
     <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra quién inició el conteo y quién lo cierra, qué faltó contar, pide confirmar, y arma el Excel. Al confirmar, el conteo se cierra en TODOS los dispositivos y el inventario queda en el Historial de cada uno. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
     <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Los últimos 12 inventarios, con opción de volver a bajar el Excel o reenviarlo por correo. Se guardan en la nube, así que se ven desde cualquier dispositivo y no se pierden aunque se borren los datos del navegador.</div></div>
     <div class="ayuda-item"><div class="ic">⚙️</div><div><b>Ajustes</b>El botón ⚙️ arriba cambia con cuántos días de anticipación avisa la app de los vencimientos (ahora: <b style="display:inline" id="diasAct2"></b>).</div></div>
@@ -802,21 +808,6 @@ $("#lista").addEventListener("click",e=>{
     if(S.pedir[key]) delete S.pedir[key]; else S.pedir[key]="man";
     touch(key); save(); render(); return;
   }
-  if(editMode && e.target.closest("[data-lotes]")){
-    const actual = p.diasAlerta || "";
-    const v = prompt("¿Con cuántos días de anticipación avisar el vencimiento de "+p.nombre+"?\n\nVacío = usar el general ("+diasAlerta()+" días).", actual);
-    if(v===null) return;
-    const t=String(v).trim();
-    if(t===""){ delete p.diasAlerta; }
-    else{
-      const n=parseInt(t,10);
-      if(isNaN(n)||n<1||n>365){ toast("Poné un número entre 1 y 365"); return; }
-      p.diasAlerta=n;
-    }
-    save(); render(); syncPush(true);
-    toast(p.diasAlerta? p.nombre+": aviso a "+p.diasAlerta+" días" : p.nombre+": usa el aviso general");
-    return;
-  }
   if(editMode && e.target.closest("[data-min]")){
     const actual = p.min==null?"":String(p.min);
     const v = prompt("Mínimo para "+p.nombre+(p.unidad==="%"?" (en %)":"")+":\n\nDejalo vacío para quitar el mínimo.", actual);
@@ -906,7 +897,12 @@ function renderLotes(){
     </div>`;
   } else pb.style.display="none";
   const pL=S.productos.find(x=>x.key===lotesKey);
-  $("#loteDias").textContent = "Avisa "+diasDe(pL)+" días antes"+(pL&&pL.diasAlerta?" (propio de este producto)":" (general)")+".";
+  $("#loteDiasIn").value = diasDe(pL);
+  $("#loteDiasDef").textContent = "Usar el general ("+diasAlerta()+")";
+  $("#loteDiasDef").style.display = (pL && pL.diasAlerta) ? "inline-block" : "none";
+  $("#loteDiasTag").textContent = (pL && pL.diasAlerta)
+    ? "Este producto tiene su propio aviso."
+    : "Usa el aviso general de "+diasAlerta()+" días.";
   $("#loteAdd").textContent = loteEdit==null ? "＋ Agregar lote" : "✓ Guardar cambio";
   $("#loteLbl").textContent = loteEdit==null ? "Agregar fecha de vencimiento" : "Editar la fecha seleccionada";
   const lotes=lotesDe(lotesKey);
@@ -933,6 +929,19 @@ function renderLotes(){
       }).join("")
     : `<p class="muted">Sin fechas cargadas.</p>`;
 }
+function setDiasProducto(n){
+  const p=S.productos.find(x=>x.key===lotesKey); if(!p) return;
+  if(n==null) delete p.diasAlerta;
+  else p.diasAlerta=n;
+  save(); renderLotes(); render(); syncPush(true);
+  toast(n==null? p.nombre+": usa el aviso general" : p.nombre+": aviso a "+n+" días");
+}
+$("#loteDiasIn").addEventListener("change",e=>{
+  const n=parseInt(String(e.target.value).trim(),10);
+  if(isNaN(n)||n<1||n>365){ toast("Poné un número entre 1 y 365"); renderLotes(); return; }
+  setDiasProducto(n===diasAlerta() ? null : n);
+});
+$("#loteDiasDef").addEventListener("click",()=>setDiasProducto(null));
 $("#prevBox").addEventListener("click",e=>{
   const b=e.target.closest("[data-prev]"); if(!b) return;
   if(b.dataset.prev==="ok"){ S.lotes[lotesKey]=PREV[lotesKey].map(l=>({f:l.f, q:l.q, n:l.n||"", m:l.q!=null})); repartirLotes(lotesKey); }
