@@ -155,6 +155,7 @@
   <h1>📋 Inventario · Tasty Poke Mataró</h1>
   <div class="persona" id="personaBtn">👤 —</div>
   <span id="syncTag" style="font-size:12px;color:var(--muted)"></span>
+  <button class="btn btn-ghost" id="cfgBtn" title="Días de aviso de vencimiento">⚙️</button>
   <button class="btn btn-ghost" id="ayudaBtn" title="Ayuda">❓</button>
   <button class="btn btn-ghost" id="nuevoBtn" title="Empezar un conteo nuevo">🔄 Nuevo</button>
   <button class="btn btn-ghost" id="histBtn">Historial</button>
@@ -225,7 +226,7 @@
     <h2 id="lotesTitle">Vencimientos de lote</h2>
     <div id="prevBox"></div>
     <div id="lotesList"></div>
-    <label>Agregar fecha de vencimiento</label>
+    <label id="loteLbl">Agregar fecha de vencimiento</label>
     <input type="date" id="loteFecha">
     <div class="actions">
       <button class="btn btn-ghost" data-close>Cerrar</button>
@@ -312,7 +313,7 @@
     <h2>¿Cómo se usa?</h2>
     <div class="ayuda-item"><div class="ic">🧊📦</div><div><b>Heladera y Almacén</b>Contá cada zona por separado (según el producto: Heladera/Almacén, Congelado/Descongelado, Cocina/Barra…). Con − y ＋ vas de a uno, o tocá el número para el teclado grande. Algunos productos tienen un solo contador o botones Sí/No de "suficiente". El Total se suma solo.</div></div>
     <div class="ayuda-item"><div class="ic">📝</div><div><b>Nota</b>Comentario opcional del producto (ej. "llegó caja rota"). Sale en el Excel.</div></div>
-    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Si el producto tenía fecha en el inventario anterior, aparece precargada con el botón 📅 en ámbar: tocalo y elegí "Sigue igual", "Ya no está" o cargá la fecha nueva. Al finalizar, la app avisa si quedó alguna sin confirmar. Cuando el vencimiento esté cerca, aparece un aviso arriba y el producto se marca en rojo — <a href="#" id="cfgDias2">⚙️ cambiar los días de aviso</a> (ahora: <b style="display:inline" id="diasAct"></b>).</div></div>
+    <div class="ayuda-item"><div class="ic">📅</div><div><b>Vencimientos</b>Cargá la fecha de cada lote. Si el producto tenía fecha en el inventario anterior, aparece precargada con el botón 📅 en ámbar: tocalo y elegí "Sigue igual", "Ya no está" o cargá la fecha nueva. Para corregir una fecha ya cargada, tocá ✎ sobre ella, elegí la nueva y guardá; con ✕ se borra. Al finalizar, la app avisa si quedó alguna sin confirmar. Cuando el vencimiento esté cerca, aparece un aviso arriba y el producto se marca en rojo — <a href="#" id="cfgDias2">⚙️ cambiar los días de aviso</a> (ahora: <b style="display:inline" id="diasAct"></b>).</div></div>
     <div class="ayuda-item"><div class="ic">🛒</div><div><b>Hay que pedir</b>Tocá 🛒 si hay que reponer. Además, cada producto tiene un <b style="display:inline">mínimo</b>: si el total queda en ese número o por debajo, la fila se pone roja y se marca 🛒 sola; si después subís la cantidad por encima del mínimo, se desmarca sola. Todo sale en el Excel.</div></div>
     <div class="ayuda-item"><div class="ic">📊</div><div><b>Barra de progreso</b>Arriba se ve cuántos productos llevan contados sobre el total. Se completa sola a medida que cargás cantidades.</div></div>
     <div class="ayuda-item"><div class="ic">🔍</div><div><b>Buscar y filtrar</b>Escribí el nombre, o tocá Bebidas / Alimentos / Envases y aparecen las subcategorías (refrescos, cervezas, salsas, nevera…).</div></div>
@@ -320,6 +321,7 @@
     <div class="ayuda-item"><div class="ic">✋</div><div><b>Editar</b>Arrastrá desde ⠿ para poner los productos en el orden del local, tocá el número <b style="display:inline">Mín</b> para cambiar el mínimo de cada uno, y 🗑 para eliminar (pide confirmación). "Guardar cambios" lo deja fijo y lo comparte con los demás dispositivos.</div></div>
     <div class="ayuda-item"><div class="ic">✅</div><div><b>Finalizar</b>Muestra quién inició el conteo y quién lo cierra, qué faltó contar, pide confirmar, y arma el Excel. Al confirmar, el conteo se cierra en TODOS los dispositivos y el inventario queda en el Historial de cada uno. "Enviar automático" lo manda solo por correo a Mataró; también podés compartirlo o descargarlo.</div></div>
     <div class="ayuda-item"><div class="ic">🕐</div><div><b>Historial</b>Los últimos 12 inventarios, con opción de volver a bajar el Excel o reenviarlo por correo. Se guardan en la nube, así que se ven desde cualquier dispositivo y no se pierden aunque se borren los datos del navegador.</div></div>
+    <div class="ayuda-item"><div class="ic">⚙️</div><div><b>Ajustes</b>El botón ⚙️ arriba cambia con cuántos días de anticipación avisa la app de los vencimientos (ahora: <b style="display:inline" id="diasAct2"></b>).</div></div>
     <div class="ayuda-item"><div class="ic">🔄</div><div><b>Nuevo</b>Limpia el conteo para empezar de cero, en todos los dispositivos. Usalo cuando el inventario anterior ya se envió. No borra el Historial.</div></div>
     <div class="ayuda-item" style="border-bottom:none"><div class="ic">💾</div><div><b>Guardado automático y compartido</b>Todo se guarda al instante y el conteo se comparte entre dispositivos cada ~10 segundos: podés empezar en el móvil y seguir en la tablet, o contar entre dos repartiéndose las zonas. Sin internet seguís contando igual y se sube al reconectar.</div></div>
     <div class="actions"><button class="btn btn-primary" data-close>¡Entendido!</button></div>
@@ -738,7 +740,7 @@ $("#lista").addEventListener("click",e=>{
     $("#notaText").value=S.notas[key]||""; openM("mNota"); return;
   }
   if(e.target.closest("[data-lotes]")){
-    lotesKey=key; $("#lotesTitle").textContent="Vencimientos — "+p.nombre;
+    lotesKey=key; loteEdit=null; $("#lotesTitle").textContent="Vencimientos — "+p.nombre;
     renderLotes(); $("#loteFecha").value=""; openM("mLotes"); return;
   }
   if(e.target.closest("[data-pedir]")){
@@ -818,7 +820,7 @@ $("#notaOk").onclick=()=>{
 };
 
 /* Lotes */
-let lotesKey=null;
+let lotesKey=null, loteEdit=null;
 function renderLotes(){
   const pb=$("#prevBox");
   if(PREV[lotesKey] && !(S.lotes[lotesKey]||[]).length && !S.lotesOk[lotesKey]){
@@ -833,13 +835,15 @@ function renderLotes(){
       <p class="muted" style="margin:10px 0 0">O cargá la fecha nueva abajo.</p>
     </div>`;
   } else pb.style.display="none";
+  $("#loteAdd").textContent = loteEdit==null ? "＋ Agregar lote" : "✓ Guardar cambio";
+  $("#loteLbl").textContent = loteEdit==null ? "Agregar fecha de vencimiento" : "Editar la fecha seleccionada";
   const lotes=(S.lotes[lotesKey]||[]).slice().sort();
   $("#lotesList").innerHTML = lotes.length
     ? lotes.map((l,i)=>{
         const d=diasHasta(l);
         const tag = d<0?`<span style="color:var(--danger);font-weight:700">VENCIDO</span>`
                   : d<=diasAlerta()?`<span style="color:var(--warn);font-weight:700">en ${d}d</span>`:"";
-        return `<div class="lote-item">📅 ${fmtFecha(l)} ${tag}<button class="x" data-li="${i}">✕</button></div>`;
+        return `<div class="lote-item"><span data-ed="${i}" style="cursor:pointer">📅 ${fmtFecha(l)}</span> ${tag}<button class="x" data-ed="${i}" style="background:#eef2f5;color:var(--ink);margin-left:auto">✎</button><button class="x" data-li="${i}">✕</button></div>`;
       }).join("")
     : `<p class="muted">Sin fechas cargadas.</p>`;
 }
@@ -852,15 +856,31 @@ $("#prevBox").addEventListener("click",e=>{
   closeM("mLotes");
 });
 $("#lotesList").addEventListener("click",e=>{
+  const ed=e.target.closest("[data-ed]");
+  if(ed){
+    const lotes=(S.lotes[lotesKey]||[]).slice().sort();
+    loteEdit=Number(ed.dataset.ed);
+    $("#loteFecha").value=lotes[loteEdit]||"";
+    renderLotes();
+    $("#loteFecha").focus();
+    return;
+  }
   const b=e.target.closest("[data-li]"); if(!b) return;
   const lotes=(S.lotes[lotesKey]||[]).slice().sort();
-  lotes.splice(Number(b.dataset.li),1);
+  lotes.splice(Number(b.dataset.li),1); loteEdit=null;
   if(lotes.length) S.lotes[lotesKey]=lotes; else delete S.lotes[lotesKey];
   touch(lotesKey); save(); renderLotes(); render();
 });
 $("#loteAdd").onclick=()=>{
   const f=$("#loteFecha").value; if(!f){ toast("Elegí una fecha"); return; }
-  S.lotes[lotesKey]=[...(S.lotes[lotesKey]||[]),f]; S.lotesOk[lotesKey]=true;
+  if(loteEdit!=null){
+    const lotes=(S.lotes[lotesKey]||[]).slice().sort();
+    lotes[loteEdit]=f; S.lotes[lotesKey]=lotes; loteEdit=null;
+    toast("Fecha actualizada");
+  } else {
+    S.lotes[lotesKey]=[...(S.lotes[lotesKey]||[]),f];
+  }
+  S.lotesOk[lotesKey]=true;
   $("#loteFecha").value=""; touch(lotesKey); save(); renderLotes(); render();
 };
 
@@ -1334,10 +1354,10 @@ function pedirDiasAlerta(){
   S.diasAlerta=n; save(); render(); toast("Aviso configurado a "+n+" días");
 }
 document.addEventListener("click",e=>{
-  const a=e.target.closest("#cfgDias, #cfgDias2");
+  const a=e.target.closest("#cfgDias, #cfgDias2, #cfgBtn");
   if(a){ e.preventDefault(); pedirDiasAlerta(); }
 });
-$("#ayudaBtn").onclick=()=>{ const d=$("#diasAct"); if(d) d.textContent=diasAlerta()+" días"; openM("mAyuda"); };
+$("#ayudaBtn").onclick=()=>{ [["#diasAct"],["#diasAct2"]].forEach(([s])=>{ const d=$(s); if(d) d.textContent=diasAlerta()+" días"; }); openM("mAyuda"); };
 if(!localStorage.getItem(AYUDA_KEY)){ localStorage.setItem(AYUDA_KEY,"1"); openM("mAyuda"); }
 if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{});
 </script>
