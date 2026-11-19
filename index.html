@@ -1169,7 +1169,7 @@ $("#doneAuto").onclick=async()=>{
     const r=await fetch(url,{method:"POST",body:JSON.stringify({
       filename:lastFname, b64,
       subject:"Inventario Mataró — "+h.fecha+" ("+h.persona+")",
-      body:"Inventario Tasty Poke Mataró.\nFecha: "+h.fecha+"\nIniciado por: "+((h.inicio&&h.inicio.quien)||h.persona)+" ("+((h.inicio&&h.inicio.hora)||"")+")\nFinalizado por: "+h.persona+" ("+(h.finHora||"")+")\nParticipantes: "+((h.participantes||[h.persona]).join(", "))+"\n\nEnviado automáticamente desde la app de inventario."})});
+      body:"Inventario Tasty Poke Mataró.\nFecha: "+h.fecha+"\nIniciado por: "+((h.inicio&&h.inicio.quien)||h.persona)+" ("+((h.inicio&&h.inicio.hora)||"")+")\nFinalizado por: "+h.persona+" ("+(h.finHora||"")+")\nParticipantes: "+((h.participantes||[h.persona]).join(", "))+textoVenc(h)+"\n\nEnviado automáticamente desde la app de inventario."})});
     const j=await r.json();
     if(!j.ok) throw new Error(j.error||"error");
     btn.textContent="✅ Enviado a Mataró";
@@ -1247,7 +1247,7 @@ $("#histList").addEventListener("click",e=>{
         const r=await fetch(url,{method:"POST",body:JSON.stringify({
           filename:"Inventario_Tasty_Mataro_"+h.fecha.replace(/\//g,"-")+".xlsx", b64,
           subject:"Inventario Mataró (reenvío) — "+h.fecha+" ("+h.persona+")",
-          body:"Reenvío del inventario.\nFecha: "+h.fecha+"\nHecho por: "+h.persona})});
+          body:"Reenvío del inventario.\nFecha: "+h.fecha+"\nHecho por: "+h.persona+textoVenc(h)})});
         const j=await r.json(); if(!j.ok) throw 0;
         m.textContent="✅"; toast("Reenviado a "+EMAIL);
       }catch(err){ m.disabled=false; m.textContent="✉️"; toast("No se pudo reenviar. ¿Hay internet?"); }
@@ -1275,6 +1275,16 @@ function downloadBlob(blob,name){
 }
 
 /* ================= XLSX (sin librerías, funciona offline) ================= */
+function partesLotes(str){
+  const out={f:[],q:[],n:[]};
+  String(str||"").split(",").forEach(x=>{ const m=x.trim().match(/^(\d{2}\/\d{2}\/\d{4})(?:\s*\(([\d.,]+)\))?(?:\s*#(.+))?$/); if(!m) return;
+    out.f.push(m[1]); out.q.push(m[2]||""); out.n.push((m[3]||"").trim()); });
+  return {fechas:out.f.join(" / "), unid:out.q.filter(Boolean).join(" / "), lotes:out.n.filter(Boolean).join(" / ")};
+}
+function textoVenc(h){
+  const v=(h.rows||[]).filter(r=>r.lotes).map(r=>{ const p=partesLotes(r.lotes); return "• "+r.nombre+": vence "+p.fechas+(p.unid?" ("+p.unid+" u)":"")+(p.lotes?" · lote "+p.lotes:""); });
+  return v.length? "\n\nVENCIMIENTOS Y LOTES ("+v.length+"):\n"+v.join("\n") : "\n\nVencimientos y lotes: ninguno cargado.";
+}
 function buildXlsx(inv){
   const xe=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   function sheetXML(rows){
@@ -1294,16 +1304,16 @@ function buildXlsx(inv){
   function colName(i){ let s=""; i++; while(i){ s=String.fromCharCode(65+(i-1)%26)+s; i=Math.floor((i-1)/26);} return s; }
 
   // Hoja 1: formato Ágora
-  const h1=["Id","Familia","Nombre","Ubicación","Código Barras","Unidad","Stock Teórico (Uds. Venta)","Stock Real (Uds. Venta)"];
-  const s1=[h1, ...inv.rows.map(r=>[r.id===""?"":Number(r.id), r.fam, r.nombre, "", r.bc, r.unidad, "", r.total==null?"":(r.sino?(r.total===1?"Sí":"No"):r.total)])];
+  const h1=["Id","Familia","Nombre","Ubicación","Código Barras","Unidad","Stock Teórico (Uds. Venta)","Stock Real (Uds. Venta)","Fecha vencimiento","Lote","Unid. por lote"];
+  const s1=[h1, ...inv.rows.map(r=>[r.id===""?"":Number(r.id), r.fam, r.nombre, "", r.bc, r.unidad, "", r.total==null?"":(r.sino?(r.total===1?"Sí":"No"):r.total), ...(p=>[p.fechas,p.lotes,p.unid])(partesLotes(r.lotes))])];
   // Hoja 2: detalle
-  const h2=["Nombre","Familia","Prov.","Zona 1","Zona 2","Total","Mínimo","Nota","Vencimientos","Pedir"];
+  const h2=["Nombre","Familia","Prov.","Zona 1","Zona 2","Total","Mínimo","Nota","Fecha vencimiento","Lote","Unid. por lote","Pedir"];
   const s2=[["Inventario — Tasty Poke Mataró"],
     ["Fecha", inv.fecha],
     ["Iniciado por", (inv.inicio&&inv.inicio.quien)||inv.persona, "Hora inicio", (inv.inicio&&inv.inicio.hora)||""],
     ["Finalizado por", inv.persona, "Hora fin", inv.finHora||""],
     ["Participantes", (inv.participantes||[inv.persona]).join(", ")],[],
-    h2, ...inv.rows.map(r=>[r.nombre, r.fam||"", r.prov||"", r.sino?(r.h==null?"":(r.h===1?"Sí":"No")):(r.h==null?"":r.h), r.a==null?"":r.a, r.sino?"":(r.total==null?"":r.total), r.min===""?"":r.min, r.nota, r.lotes, r.pedir||""])];
+    h2, ...inv.rows.map(r=>[r.nombre, r.fam||"", r.prov||"", r.sino?(r.h==null?"":(r.h===1?"Sí":"No")):(r.h==null?"":r.h), r.a==null?"":r.a, r.sino?"":(r.total==null?"":r.total), r.min===""?"":r.min, r.nota, ...(p=>[p.fechas,p.lotes,p.unid])(partesLotes(r.lotes)), r.pedir||""])];
 
   const files=[
     ["[Content_Types].xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
