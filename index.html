@@ -543,7 +543,7 @@ let S = load();
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; s.ts=s.ts||{}; s.crev=s.crev||0; s.participantes=s.participantes||[]; s.ultimoCierre=s.ultimoCierre||""; s.lotesOk=s.lotesOk||{}; s.pend=s.pend||{}; s.base=s.base||{}; s.bts=s.bts||{}; s.diasAlerta=s.diasAlerta||DIAS_ALERTA_DEF;
+    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; s.ts=s.ts||{}; s.crev=s.crev||0; s.participantes=s.participantes||[]; s.ultimoCierre=s.ultimoCierre||""; s.lotesOk=s.lotesOk||{}; s.pend=s.pend||{}; s.base=s.base||{}; s.bts=s.bts||{}; s.histDel=s.histDel||[]; s.diasAlerta=s.diasAlerta||DIAS_ALERTA_DEF;
         if(!mismoSeed(s.productos)){ s.productos=migrarSeed(s.productos); s.rev=Date.now(); }
         Object.keys(s.pedir).forEach(k=>{ if(s.pedir[k]!=="man") s.pedir[k]="auto"; });
         return s; } }
@@ -551,7 +551,7 @@ function load(){
   return {
     persona:"",
     productos: SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p})),
-    rev:0, crev:0, ultimoCierre:"", diasAlerta:DIAS_ALERTA_DEF, ts:{}, lotesOk:{}, inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, pend:{}, base:{}, bts:{}, history:[]
+    rev:0, crev:0, ultimoCierre:"", diasAlerta:DIAS_ALERTA_DEF, ts:{}, lotesOk:{}, inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, pend:{}, base:{}, bts:{}, histDel:[], history:[]
   };
 }
 const SEED_KEYS = new Set(SEED.map((p,i)=>"p"+(p.id||("x"+i))));
@@ -1258,7 +1258,7 @@ $("#histList").addEventListener("click",e=>{
   if(d){
     const i=Number(d.dataset.hd), h=S.history[i];
     if(confirm("⚠️ ¿Borrar el inventario del "+h.fecha+" ("+h.persona+") del historial?\n\nNo se puede deshacer.")){
-      S.history.splice(i,1); save(); renderHist(); pushHistorial(); toast("Inventario borrado del historial");
+      if(!S.histDel.includes(h.iso)) S.histDel.push(h.iso); S.history.splice(i,1); save(); renderHist(); render(); pushHistorial(); toast("Inventario borrado del historial");
     }
     return;
   }
@@ -1438,7 +1438,7 @@ async function pullConteo(interno){
     if(R.cerrado && R.cerrado.id && R.cerrado.id!==S.ultimoCierre){
       S.ultimoCierre=R.cerrado.id;
       const inv=R.cerrado.inv;
-      if(inv && !S.history.some(h=>h.iso===inv.iso)){ S.history.unshift(inv); if(S.history.length>30) S.history.length=30; }
+      if(inv && !S.history.some(h=>h.iso===inv.iso) && !S.histDel.includes(inv.iso)){ S.history.unshift(inv); if(S.history.length>30) S.history.length=30; }
       const keep=Object.keys(S.pend).filter(k=>S.counts[k]||S.lotes[k]||S.notas[k]);
       const K={counts:{},notas:{},lotes:{},lotesOk:{},pedir:{},ts:{}};
       keep.forEach(k=>{ ["counts","notas","lotes","lotesOk","pedir"].forEach(x=>{ if(S[x][k]!==undefined) K[x][k]=S[x][k]; }); K.ts[k]=S.ts[k]; });
@@ -1486,27 +1486,33 @@ async function pullConteo(interno){
 
 /* ========== HISTORIAL COMPARTIDO ========== */
 const MAX_HIST = 12;
+/* Los borrados viajan como marcas {iso, borrado:true} para que se borren en TODOS los dispositivos */
 function fusionarHist(a,b){
   const m={};
-  [...(a||[]),...(b||[])].forEach(h=>{ if(h && h.iso) m[h.iso]=h; });
+  [...(a||[]),...(b||[])].forEach(h=>{ if(h && h.iso && !h.borrado && !S.histDel.includes(h.iso)) m[h.iso]=h; });
   return Object.values(m).sort((x,y)=> y.iso.localeCompare(x.iso)).slice(0,MAX_HIST);
 }
 async function pullHistorial(){
   try{
     const j=await api({action:"getHistorial"});
-    if(!j || !j.ok || !j.historial) return;
+    if(!j || !j.ok || !j.historial) return false;
+    j.historial.forEach(h=>{ if(h && h.borrado && !S.histDel.includes(h.iso)) S.histDel.push(h.iso); });
+    S.histDel=S.histDel.slice(-60);
     const antes=S.history.length;
     const fus=fusionarHist(S.history, j.historial);
     if(JSON.stringify(fus)!==JSON.stringify(S.history)){
-      S.history=fus; save();
+      S.history=fus; save(); render();
       if(fus.length>antes) toast("Historial actualizado ("+fus.length+" inventarios)");
+      else if(fus.length<antes) toast("Historial actualizado desde otro dispositivo");
     }
-  }catch(e){}
+    return true;
+  }catch(e){ return false; }
 }
 async function pushHistorial(){
   try{
-    S.history=S.history.slice(0,MAX_HIST); save();
-    await api({action:"setHistorial", historial:S.history}, 20000);
+    await pullHistorial();
+    S.history=fusionarHist(S.history,[]); save();
+    await api({action:"setHistorial", historial:S.history.concat(S.histDel.map(iso=>({iso, borrado:true})))}, 20000);
   }catch(e){}
 }
 
