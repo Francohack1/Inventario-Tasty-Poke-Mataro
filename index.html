@@ -53,6 +53,10 @@
   .prog .fill{height:100%; width:0; background:var(--accent); border-radius:999px; transition:width .35s ease;}
   .prog.full .fill{background:#1e8449;}
   .prog.full .txt b{color:#1e8449;}
+  #netBanner{display:none; margin:8px 14px; padding:12px 14px; border-radius:12px; font-size:15px; font-weight:600;}
+  #netBanner.off{display:block; background:#c0392b; color:#fff;}
+  #netBanner.pend{display:block; background:#fdf3e3; color:#7a5200; border:1px solid #f0d9ac;}
+  #netBanner.keep{display:block; background:#1f6f8b; color:#fff;}
   #alertVenc{margin:0 14px 6px; background:#fdf3e3; border:1px solid #f0d9ac; color:#7a5200;
     border-radius:12px; padding:10px 14px; font-size:14px; display:none;}
 
@@ -177,6 +181,7 @@
 
 <div class="subchips" id="subchips" style="display:none"></div>
 <div class="prog" id="prog"><div class="txt"><span><b id="progN">0</b> <span id="progDe">de 0 productos contados</span></span><span id="progPct">0%</span></div><div class="bar"><div class="fill" id="progFill"></div></div></div>
+<div id="netBanner"></div>
 <div id="alertVenc"></div>
 <main id="lista"></main>
 
@@ -538,7 +543,7 @@ let S = load();
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; s.ts=s.ts||{}; s.crev=s.crev||0; s.participantes=s.participantes||[]; s.ultimoCierre=s.ultimoCierre||""; s.lotesOk=s.lotesOk||{}; s.diasAlerta=s.diasAlerta||DIAS_ALERTA_DEF;
+    if(raw){ const s = JSON.parse(raw); if(s && s.productos){ s.pedir=s.pedir||{}; s.ts=s.ts||{}; s.crev=s.crev||0; s.participantes=s.participantes||[]; s.ultimoCierre=s.ultimoCierre||""; s.lotesOk=s.lotesOk||{}; s.pend=s.pend||{}; s.base=s.base||{}; s.bts=s.bts||{}; s.diasAlerta=s.diasAlerta||DIAS_ALERTA_DEF;
         if(!mismoSeed(s.productos)){ s.productos=migrarSeed(s.productos); s.rev=Date.now(); }
         Object.keys(s.pedir).forEach(k=>{ if(s.pedir[k]!=="man") s.pedir[k]="auto"; });
         return s; } }
@@ -546,7 +551,7 @@ function load(){
   return {
     persona:"",
     productos: SEED.map((p,i)=>({key:"p"+(p.id||("x"+i)), ...p})),
-    rev:0, crev:0, ultimoCierre:"", diasAlerta:DIAS_ALERTA_DEF, ts:{}, lotesOk:{}, inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, history:[]
+    rev:0, crev:0, ultimoCierre:"", diasAlerta:DIAS_ALERTA_DEF, ts:{}, lotesOk:{}, inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, pend:{}, base:{}, bts:{}, history:[]
   };
 }
 const SEED_KEYS = new Set(SEED.map((p,i)=>"p"+(p.id||("x"+i))));
@@ -582,7 +587,7 @@ const grupoDe = f => f==="ENVASES" ? "ENVASES" : ["SALSAS","COCINA","NEVERA","AC
 const famShort = f => f.includes("VINOS")?"Vinos": f.includes("CERVEZAS Y")?"Cervezas": f==="ZUMOS"?"Zumos": f==="OTROS"?"Otros": f==="SALSAS"?"Salsas": f==="COCINA"?"Cocina": f==="NEVERA"?"Nevera": f==="ACAI"?"Açaí": f==="ENVASES"?"Envases":"Refrescos";
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 function cnt(k){ return S.counts[k] || {h:null,a:null}; }
-function touch(k){ S.ts[k]=Date.now(); pushConteo(); }
+function touch(k){ S.ts[k]=Date.now(); S.pend[k]=S.ts[k]; pushConteo(); renderNet(); }
 function bajoMin(p){ if(p.min==null) return false; const t=totalOf(p.key); return t!=null && t<=p.min; }
 function autoPedir(){
   let ch=false;
@@ -1062,7 +1067,39 @@ $("#personaOk").onclick=()=>{
 function refreshPersona(){ $("#personaBtn").textContent="👤 "+(S.persona||"—"); }
 
 /* ================= FINALIZAR ================= */
-$("#finBtn").onclick=()=>{
+const NET={ok:null,last:0,keep:0};
+function renderNet(){
+  const el=document.getElementById("netBanner"); if(!el) return;
+  const np=Object.keys(S.pend||{}).length;
+  if(NET.ok===false){ el.className="off"; el.innerHTML="⚠️ SIN CONEXIÓN — "+(np?np+" cambio(s) guardados SOLO en este dispositivo. ":"")+"Podés seguir contando; se suben solos al volver internet. No finalices desde acá hasta entonces."; }
+  else if(NET.keep){ el.className="keep"; el.innerHTML="ℹ️ Mientras estabas sin conexión se cerró un inventario en otro dispositivo. Se conservaron "+NET.keep+" producto(s) que contaste acá: siguen en este conteo nuevo. <a href='#' id='netKeepOk' style='color:#fff'>Entendido</a>"; }
+  else if(np){ el.className="pend"; el.textContent="↻ Subiendo "+np+" cambio(s)…"; }
+  else { el.className=""; el.textContent=""; }
+}
+document.addEventListener("click",e=>{ if(e.target.id==="netKeepOk"){ e.preventDefault(); NET.keep=0; renderNet(); } });
+window.addEventListener("online",()=>pushConteo(true));
+setInterval(()=>{ if(Object.keys(S.pend).length) pushConteo(true); }, 15000);
+function respaldoLocal(){
+  const fecha=new Date(); const fstr=String(fecha.getDate()).padStart(2,"0")+"/"+String(fecha.getMonth()+1).padStart(2,"0")+"/"+fecha.getFullYear();
+  const rows=S.productos.map(p=>{ const c=cnt(p.key); return {key:p.key,id:p.id||"",fam:p.fam,nombre:p.nombre,bc:p.bc,unidad:p.unidad,prov:p.prov||"",sino:!!p.sino,min:p.min==null?"":p.min,h:c.h,a:c.a,total:totalOf(p.key),nota:S.notas[p.key]||"",lotes:lotesDe(p.key).map(l=>fmtFecha(l.f)+(l.q!=null?" ("+fmtN(l.q)+")":"")+(l.n?" #"+l.n:"")).join(", "),pedir:S.pedir[p.key]?"SÍ":""}; });
+  const inv={fecha:fstr, iso:fecha.toISOString(), persona:S.persona||"?", inicio:S.inicio, finHora:hhmm(), participantes:S.participantes.slice(), rows};
+  downloadBlob(buildXlsx(inv),"RESPALDO_sin_enviar_"+fstr.replace(/\//g,"-")+".xlsx");
+}
+$("#finBtn").onclick=async()=>{
+  const fb=$("#finBtn"); fb.disabled=true; const ft=fb.textContent; fb.textContent="↻ Sincronizando antes de finalizar…";
+  let ok=false;
+  try{ clearTimeout(pushT); await syncPull(); ok=await pullConteo(true);
+    if(ok && Object.keys(S.pend).length){ const j=await api({action:"setConteo", data:{persona:S.persona, inicio:S.inicio, participantes:S.participantes, counts:S.counts, notas:S.notas, lotes:S.lotes, lotesOk:S.lotesOk, pedir:S.pedir, ts:S.ts}}); ok=!!(j&&j.ok); if(ok){ S.pend={}; save(); } }
+  }catch(e){ ok=false; }
+  fb.disabled=false; fb.textContent=ft; render(); renderNet();
+  if(!ok){
+    if(confirm("⚠️ No hay conexión, así que no se puede finalizar: podría haber conteos de otros dispositivos que este no ve.\n\nPodés seguir contando y finalizar cuando vuelva internet.\n\n¿Querés descargar ahora un Excel de RESPALDO con lo que hay en este dispositivo? (no se envía ni se cierra nada)")) respaldoLocal();
+    return;
+  }
+  if(!S.productos.some(p=>totalOf(p.key)!=null)){
+    alert("⛔ No hay ningún producto contado (ni en este dispositivo ni en la nube).\n\nNo se puede finalizar un inventario vacío. Si contaron en otro dispositivo, abrí la app ahí con internet para que se suba el conteo.");
+    return;
+  }
   const sin=S.productos.filter(p=>totalOf(p.key)==null);
   const contados=S.productos.length-sin.length;
   $("#finResumen").innerHTML=`
@@ -1107,6 +1144,7 @@ $("#finOk").onclick=()=>{
   lastBlob=buildXlsx(inv);
   cerrarParaTodos(inv);
   pushHistorial();
+  const ab=$("#doneAuto"); ab.disabled=false; ab.textContent="✉️ Enviar automático a Mataró";
   closeM("mFin"); openM("mDone");
 };
 $("#doneDownload").onclick=()=>downloadBlob(lastBlob,lastFname);
@@ -1156,7 +1194,7 @@ $("#doneMail").onclick=()=>{
 };
 function cerrarParaTodos(inv){
   S.ultimoCierre=inv.iso;
-  S.counts={}; S.notas={}; S.lotes={}; S.lotesOk={}; S.pedir={}; S.ts={}; S.persona=""; S.inicio=null; S.participantes=[];
+  S.counts={}; S.notas={}; S.lotes={}; S.lotesOk={}; S.pedir={}; S.ts={}; S.pend={}; S.base={}; S.bts={}; S.persona=""; S.inicio=null; S.participantes=[];
   save(); refreshPersona(); render();
   clearTimeout(pushT);
   api({action:"setConteo", data:{cerrado:{id:inv.iso, inv}, persona:"", inicio:null, participantes:[],
@@ -1165,7 +1203,7 @@ function cerrarParaTodos(inv){
     .catch(()=>{ syncTag("⚠ sin conexión"); setTimeout(()=>syncTag(""),3000); });
 }
 function nuevoConteo(){
-  S.counts={}; S.notas={}; S.lotes={}; S.pedir={}; S.ts={}; S.persona=""; S.inicio=null; S.participantes=[];
+  S.counts={}; S.notas={}; S.lotes={}; S.lotesOk={}; S.pedir={}; S.ts={}; S.pend={}; S.base={}; S.bts={}; S.persona=""; S.inicio=null; S.participantes=[];
   save(); refreshPersona(); clearTimeout(pushT);
   api({action:"setConteo", data:{cerrado:S.ultimoCierre?{id:S.ultimoCierre}:null, persona:"", inicio:null, participantes:[], counts:{}, notas:{}, lotes:{}, pedir:{}, ts:{}}}).catch(()=>{});
   closeM("mDone"); render(); toast("Conteo limpiado en todos los dispositivos");
@@ -1366,8 +1404,9 @@ async function api(body, ms){
   const t=setTimeout(()=>ctl.abort(), ms||12000);
   try{
     const r=await fetch(syncURL(),{method:"POST",body:JSON.stringify(body),signal:ctl.signal});
-    return await r.json();
-  } finally { clearTimeout(t); }
+    const j=await r.json(); NET.ok=true; NET.last=Date.now(); renderNet(); return j;
+  } catch(e){ NET.ok=false; renderNet(); throw e; }
+  finally { clearTimeout(t); }
 }
 function pushConteo(inmediato){
   clearTimeout(pushT);
@@ -1376,34 +1415,57 @@ function pushConteo(inmediato){
     pushing=true;
     try{
       syncTag("↻ guardando conteo…");
+      const okPull=await pullConteo(true);
+      if(!okPull) throw 0;
+      const enviados={...S.ts};
       const j=await api({action:"setConteo",
         data:{persona:S.persona, inicio:S.inicio, participantes:S.participantes, counts:S.counts, notas:S.notas, lotes:S.lotes, lotesOk:S.lotesOk, pedir:S.pedir, ts:S.ts}});
       if(!j.ok) throw 0;
+      Object.keys(enviados).forEach(k=>{ S.base[k]={...cnt(k)}; S.bts[k]=enviados[k]; });
+      Object.keys(S.pend).forEach(k=>{ if((enviados[k]||0)>=S.pend[k]) delete S.pend[k]; }); save(); renderNet();
       syncTag("✓ conteo compartido"); setTimeout(()=>syncTag(""),2000);
     }catch(e){ syncTag("⚠ sin conexión"); setTimeout(()=>syncTag(""),3000); }
     finally{ pushing=false; }
   }, inmediato?0:1500);
 }
 
-async function pullConteo(){
-  if(pulling) return;
+async function pullConteo(interno){
+  if(pulling){ if(!interno) return false; while(pulling) await new Promise(r=>setTimeout(r,100)); }
   try{
     pulling=true;
-    const j=await api({action:"getConteo"}); if(!j.ok || !j.data) return;
+    const j=await api({action:"getConteo"}); if(!j.ok) return false; if(!j.data) return true;
     const R=j.data;
     if(R.cerrado && R.cerrado.id && R.cerrado.id!==S.ultimoCierre){
       S.ultimoCierre=R.cerrado.id;
       const inv=R.cerrado.inv;
       if(inv && !S.history.some(h=>h.iso===inv.iso)){ S.history.unshift(inv); if(S.history.length>30) S.history.length=30; }
-      S.counts={}; S.notas={}; S.lotes={}; S.pedir={}; S.ts={}; S.persona=""; S.inicio=null; S.participantes=[];
+      const keep=Object.keys(S.pend).filter(k=>S.counts[k]||S.lotes[k]||S.notas[k]);
+      const K={counts:{},notas:{},lotes:{},lotesOk:{},pedir:{},ts:{}};
+      keep.forEach(k=>{ ["counts","notas","lotes","lotesOk","pedir"].forEach(x=>{ if(S[x][k]!==undefined) K[x][k]=S[x][k]; }); K.ts[k]=S.ts[k]; });
+      S.counts=K.counts; S.notas=K.notas; S.lotes=K.lotes; S.lotesOk=K.lotesOk; S.pedir=K.pedir; S.ts=K.ts;
+      S.pend={}; keep.forEach(k=>S.pend[k]=S.ts[k]);
+      S.inicio=null; S.participantes=S.persona&&keep.length?[S.persona]:[]; if(!keep.length) S.persona="";
       save(); refreshPersona(); render();
+      if(keep.length){
+        NET.keep=keep.length; renderNet();
+        toast("Se cerró un inventario en otro dispositivo. Se CONSERVÓ lo que contaste acá sin conexión ("+keep.length+")");
+        pullHistorial(); pulling=false; pushConteo(true); return true;
+      }
       toast("✅ Inventario finalizado"+(inv?" por "+inv.persona:"")+" · listo para uno nuevo");
       pullHistorial();
-      return;
+      return true;
     }
     const rts=R.ts||{}; let cambios=0;
+    const mezclar=k=>{ // cambios locales sin subir + cambios remotos: combinar heladera/almacén por separado
+      const b=S.base[k]||{h:null,a:null}, c=cnt(k), rc=(R.counts&&R.counts[k])||{h:null,a:null};
+      S.counts[k]={h:(c.h!==b.h?c.h:rc.h), a:(c.a!==b.a?c.a:rc.a)};
+      ["notas","lotes","pedir","lotesOk"].forEach(x=>{ if(S[x][k]===undefined && R[x] && R[x][k]!==undefined) S[x][k]=R[x][k]; });
+      S.base[k]={...rc}; S.bts[k]=rts[k]; S.ts[k]=Math.max(S.ts[k]||0,rts[k])+1; S.pend[k]=S.ts[k]; cambios++;
+    };
     Object.keys(rts).forEach(k=>{
+      if(S.pend[k] && rts[k]!==S.ts[k] && rts[k] > (S.bts[k]||0)){ mezclar(k); return; }
       if(rts[k] > (S.ts[k]||0)){
+        S.base[k]=R.counts&&R.counts[k]?{...R.counts[k]}:{h:null,a:null}; S.bts[k]=rts[k];
         if(R.counts && R.counts[k]!==undefined) S.counts[k]=R.counts[k]; else delete S.counts[k];
         if(R.notas && R.notas[k]!==undefined) S.notas[k]=R.notas[k]; else delete S.notas[k];
         if(R.lotes && R.lotes[k]!==undefined) S.lotes[k]=R.lotes[k]; else delete S.lotes[k];
@@ -1415,8 +1477,10 @@ async function pullConteo(){
     if(!S.persona && R.persona) { S.persona=R.persona; refreshPersona(); }
     if(R.inicio && (!S.inicio || R.inicio.hora < S.inicio.hora)) { S.inicio=R.inicio; cambios++; }
     (R.participantes||[]).forEach(n=>{ if(!S.participantes.includes(n)){ S.participantes.push(n); cambios++; } });
+    Object.keys(S.pend).forEach(k=>{ if((S.ts[k]||0)>S.pend[k]) delete S.pend[k]; });
     if(cambios){ save(); render(); syncTag("↓ "+cambios+" actualizados"); setTimeout(()=>syncTag(""),2500); }
-  }catch(e){}
+    return true;
+  }catch(e){ return false; }
   finally{ pulling=false; }
 }
 
@@ -1449,6 +1513,7 @@ async function pushHistorial(){
 /* ================= INIT ================= */
 refreshPersona();
 render();
+renderNet();
 syncPull(); pullConteo(); pullHistorial();
 setInterval(()=>{ if(!document.hidden) pullConteo(); }, 10000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ syncPull(); pullConteo(); pullHistorial(); } });
